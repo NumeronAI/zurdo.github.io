@@ -1,0 +1,24 @@
+title: zurdo
+description: Documentation for the zurdo CLI
+url: "https://numeronai.github.io"
+baseurl: "/zurdo.github.io"
+
+theme: jekyll-theme-minimal
+markdown: kramdown
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+exclude:
+  - CLAUDE.md
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - .claude/
+  - .agents/
+  - skills-lock.json
