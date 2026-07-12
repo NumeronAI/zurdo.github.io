@@ -1,11 +1,13 @@
 ---
 layout: default
 title: Usage
+nav_order: 3
 ---
 
 # Usage
 
-> TODO: describe what zurdo does and its core concepts.
+TODO: describe what zurdo does and its core concepts.
+{: .note }
 
 ## Basic usage
 
@@ -38,5 +40,3 @@ zurdo <command> --help
 
 - [Commands reference](commands.md)
 - [Configuration](configuration.md)
-
-[← Back to home](../index.md)

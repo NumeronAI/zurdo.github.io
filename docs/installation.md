@@ -1,11 +1,13 @@
 ---
 layout: default
 title: Installation
+nav_order: 2
 ---
 
 # Installation
 
-> TODO: fill in the real installation methods once release artifacts exist.
+TODO: fill in the real installation methods once release artifacts exist.
+{: .note }
 
 ## Requirements
 
@@ -34,4 +36,4 @@ cd zurdo
 zurdo --version
 ```
 
-[← Back to home](../index.md)
+Next: [Usage](usage.md)

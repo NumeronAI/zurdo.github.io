@@ -1,11 +1,20 @@
 ---
 layout: default
 title: Commands
+nav_order: 4
 ---
 
 # Command reference
+{: .no_toc }
 
-> TODO: document each zurdo command. Suggested template below.
+TODO: document each zurdo command. Suggested template below.
+{: .note }
+
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
 
 ## `zurdo <command>`
 
@@ -39,5 +48,3 @@ zurdo <command> --example value
 |--------|-------------|
 | `--help` | Show help for any command |
 | `--version` | Print the zurdo version |
-
-[← Back to home](../index.md)
