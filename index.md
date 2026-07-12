@@ -17,7 +17,7 @@ A CLI that drives LLM coding agents through a PRD's tasks in a loop — and **in
 
 ---
 
-This documentation describes **zurdo v1.1.3**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
+This documentation describes **zurdo v1.2.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
 {: .note }
 
 ## Why zurdo
@@ -94,4 +94,4 @@ A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
 
 ## License
 
-Zurdo is proprietary software, distributed as pre-built binaries. It is an independent reimplementation inspired by [paullovvik/ralph-loop](https://github.com/paullovvik/ralph-loop) (MIT). Copyright © 2026 El Orlis.
+Zurdo is proprietary software, distributed as pre-built binaries. It is an independent reimplementation inspired by [paullovvik/ralph-loop](https://github.com/paullovvik/ralph-loop) (MIT). Copyright © 2026 Numeron Technologies Inc.

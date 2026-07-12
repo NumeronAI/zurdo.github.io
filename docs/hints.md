@@ -53,12 +53,9 @@ Mixing `[manual]` with automated hints means the automated portion still gates; 
 
 ## Regex semantics for `[grep:]` / `[no-grep:]`
 
-Patterns are Rust `regex` syntax, matched against the file's contents.
+Patterns are Rust `regex` syntax, matched against the file's contents in **multi-line mode**: `^` and `$` anchor at line boundaries, the way command-line `grep` behaves. `[grep: ^## Heading in doc.md]` passes if any line starts with the heading. Explicit `(?m)` prefixes remain valid and are redundant. The same semantics apply everywhere a pattern is evaluated — the run-time verifier, the `validate`/`--analyze` grep lints, and `--heal` verification — so authoring-time verdicts match run-time verdicts.
 
-In v1.1.3, `^` and `$` anchor to the start and end of the **entire file**, so `[grep: ^## Heading in doc.md]` only passes if the file *begins* with that heading. For line-boundary anchoring — the way command-line `grep` behaves — prefix the pattern with `(?m)`: `[grep: (?m)^## Heading in doc.md]`.
-{: .warning }
-
-**Changing in the next release:** patterns will compile in multi-line mode by default, so `^`/`$` anchor at line boundaries without `(?m)`. Existing anchored `[no-grep:]` hints may flip from pass to fail — that flip is the check finally seeing the line it was aimed at. See the [Roadmap](roadmap.md).
+**Upgrading from v1.1.x?** Patterns used to anchor to the start/end of the entire file. An anchored `[no-grep:]` hint that passed under the old semantics may now fail — that flip is the check finally seeing the line it was aimed at. Patterns without anchors are unaffected.
 {: .note }
 
 ## Prefer absence hints over shell negation
@@ -87,7 +84,7 @@ Hints must actually test something meaningful. Two pitfalls prove nothing:
 - **Vacuous shell hints** — `[shell: true]` or `[shell: echo "works"]` always pass; no work is verified.
 - **Grep tautologies** — `[grep: .* in src/main.rs]` matches everything and proves nothing; `[no-grep: ^$ in src/main.rs]` fails tautologically.
 
-`zurdo --analyze` detects and warns about both classes. If you're unsure whether a hint proves anything, run `zurdo --analyze --static-only` — the deterministic lint surfaces vacuous-shell and grep-tautology warnings before you commit compute to a real run.
+`zurdo --analyze` detects and warns about both classes. It also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo --analyze --static-only` — the deterministic lint surfaces vacuous-shell and grep-tautology warnings before you commit compute to a real run.
 
 ## Writing hints that hold up
 

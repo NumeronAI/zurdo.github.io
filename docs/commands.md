@@ -7,53 +7,85 @@ nav_order: 6
 # Command reference
 {: .no_toc }
 
+The complete CLI surface as of zurdo v1.2.0. Run `zurdo <subcommand> --help` for built-in help; a bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
+
 1. TOC
 {:toc}
 
-Run `zurdo <subcommand> --help` for the full flag surface of any command. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
-
 ## Subcommands
 
-| Subcommand                          | Purpose                                                                                        |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `zurdo init`                        | Write a default `.zurdo/config.toml` and install bundled skills to the provider discovery path  |
-| `zurdo init --sync`                 | Refresh bundled skill installs without rewriting config                                          |
-| `zurdo init --check-models`         | Probe every `effort_map` entry against its provider CLI and print a status table                |
-| `zurdo check-models`                | Probe the **existing** config's models without writing anything; adds a row per configured analyzer model. Exits `0` when all ok, `4` on any unknown/unsupported (matching the `run` pre-flight) |
-| `zurdo validate <prd>`              | Deterministic grammar + dep-graph checks; no LLM, no execution                                  |
-| `zurdo run <prd>`                   | Drive the PRD through the agent loop                                                            |
-| `zurdo run <prd> --resume`          | Resume an interrupted run; no prompt                                                            |
-| `zurdo run <prd> --reset`           | Archive existing state under `.zurdo/<slug>/.archive/<ts>/` and start fresh                     |
-| `zurdo run <prd> --analyze`         | Full pre-flight (deterministic + LLM); never proceeds to execution                              |
-| `zurdo run <prd> --analyze --fix`   | Iterative PRD refinement loop; writes `<prd>.proposed.md` and asks before overwriting           |
-| `zurdo verify <prd>`                | Re-run every terminal task's criteria against the current working tree                          |
-| `zurdo report <prd>`                | Build a curated run report (`--format json` default, `--format md` supported)                   |
-| `zurdo state list`                  | List every `.zurdo/<slug>/` at the repo root                                                    |
-| `zurdo state where <prd>`           | Print the absolute `.zurdo/<slug>/` path a PRD resolves to                                      |
-| `zurdo skills list`                 | List bundled skills compiled into the binary                                                    |
-| `zurdo skills install <name>`       | Install a bundled skill into the provider discovery path (`--all`, `--provider`, `--all-providers`) |
+| Subcommand                    | Purpose                                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `zurdo init`                  | Write a default `.zurdo/config.toml` (with comments) and install bundled skills to the provider discovery path |
+| `zurdo run <prd>`             | Drive the PRD through the agent loop. Default when no subcommand is given with a positional PRD |
+| `zurdo validate <prd>`        | Deterministic grammar + dep-graph checks; no LLM, no execution. (Skill existence is checked at run pre-flight, not here) |
+| `zurdo verify <prd>`          | Re-run every terminal task's criteria against the current working tree, without invoking the executor |
+| `zurdo report <prd>`          | Build a curated run report from `prd.json` (`--format json` default, `--format md` supported)   |
+| `zurdo state list`            | List every `.zurdo/<slug>/` state directory at the repo root                                    |
+| `zurdo state where <prd>`     | Print the absolute `.zurdo/<slug>/` path a PRD resolves to (the directory need not exist)       |
+| `zurdo skills list`           | List bundled skills compiled into the binary                                                    |
+| `zurdo skills install <name>` | Install a bundled skill directly into the provider discovery path                               |
+| `zurdo check-models`          | Probe the **existing** config's models without writing anything; adds a row per configured analyzer model. Exits `0` when all ok, `4` on any unknown/unsupported (matching the `run` pre-flight); transient `error` rows render but don't gate the exit code |
 
-### Examples
+## Authoring modes on `zurdo run`
 
-```sh
-zurdo init                                  # bootstrap config + skills in this repo
-zurdo validate prds/feature.md              # free, instant grammar check
-zurdo run prds/feature.md                   # the main event
-zurdo run prds/feature.md --resume          # continue after Ctrl-C, no prompt
-zurdo verify prds/feature.md                # re-check criteria after hand edits
-zurdo report prds/feature.md --format md    # human-readable run report
-zurdo skills install --all --all-providers  # every bundled skill, every provider
-```
+Three flag-driven modes turn `run` into a PRD-authoring tool that never executes tasks:
 
-## Global flags
+| Invocation                              | What it does                                                                                   |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `zurdo run <prd> --analyze`             | Full pre-flight analysis: deterministic lints (vacuous shells, grep tautologies, frozen-path overlaps, uncovered requirements) plus an LLM critique of vague criteria. Exits without executing |
+| `zurdo run <prd> --analyze --static-only` | Deterministic lints only — no LLM invocation, no `[roles.analyzer]` needed                     |
+| `zurdo run <prd> --analyze --fix`       | Iterative refinement loop: the analyzer proposes a tightened PRD, zurdo re-analyzes, repeat until warnings stop decreasing. Writes `<prd>.proposed.md` and asks before overwriting            |
+| `zurdo run <prd> --heal`                | Re-aim misaimed `[grep:]`/`[no-grep:]` payloads using the prior run's failure history plus the live working tree as evidence (select → propose → verify → apply). Requires an existing `.zurdo/<slug>/prd.json` from a prior run (exit `3` if absent) and `[roles.analyzer]`. On a TTY it offers each verified heal in place (`y/N`); on non-TTY or with `--no-prompt` it writes verified heals to `<prd>.proposed.md`. Never writes `prd.json` |
 
-These apply across multiple subcommands. Subcommand-specific flags (`--analyze`, `--fix`, `--resume`, `--reset`, `--format`, `--check-models`) are in the table above.
+Flag combination rules: `--fix` and `--static-only` each require `--analyze` and conflict with each other; `--heal` conflicts with all three.
+{: .note }
+
+## Flags by subcommand
+
+### `zurdo run`
+
+| Flag                  | Effect                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `--analyze`           | Run full pre-flight analysis (deterministic + LLM) and exit; never proceeds to execution.                |
+| `--fix`               | With `--analyze`: iterative refinement loop instead of a single pass. Requires `[roles.analyzer]`. Flag error without `--analyze`. |
+| `--static-only`       | With `--analyze`: deterministic checks only, no LLM. Requires `--analyze`; conflicts with `--fix`.       |
+| `--heal`              | Hint auto-healing mode (see above). Conflicts with `--analyze`/`--fix`/`--static-only`.                  |
+| `--resume`            | Skip the interactive resume prompt and continue from existing state. No-op when no state exists.         |
+| `--reset`             | Archive old state under `.zurdo/<slug>/.archive/<ts>/` and start over. Skips the resume prompt.          |
+| `--max-iterations N`  | Cap total agent invocations across the run (also caps `--analyze --fix` refinement iterations). Overrides `[defaults] max_total_iterations`. `0` = unlimited. |
+| `--skip-model-check`  | Disable the automatic pre-run model probe. For CI against fake CLIs or deliberately unverified models.   |
+
+### `zurdo init`
+
+| Flag             | Effect                                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `--sync`         | Refresh bundled skill installs in the provider discovery path without rewriting `config.toml`.             |
+| `--check-models` | After init, probe every `[effort_map.<provider>]` entry and print a status table. Informational; always exits `0`. |
+| `--force`        | Overwrite an existing `.zurdo/config.toml` (still confirms on a TTY; overwrites with non-interactive stdin). Pairs with `--check-models` to regenerate then audit. |
+| `--quiet`        | Suppress the one-line stdout summary. Stderr diagnostics are unaffected.                                   |
+
+### `zurdo report`
+
+| Flag                  | Effect                                              |
+| --------------------- | ----------------------------------------------------- |
+| `--format <json\|md>` | Output format. Default `json`.                       |
+
+### `zurdo skills install`
+
+| Flag                | Effect                                                          |
+| ------------------- | ----------------------------------------------------------------- |
+| `--all`             | Install every bundled skill in one shot.                         |
+| `--provider <name>` | Target a specific provider's discovery path. Repeatable.         |
+| `--all-providers`   | Fan out across every configured provider. Composes with `--all`. |
+
+### Global flags
+
+Apply across subcommands:
 
 | Flag                        | Effect                                                                                                    |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `--no-prompt`               | Suppress every interactive prompt (CI-safe). The resume prompt defaults to *Resume*.                       |
-| `--max-iterations N`        | Cap total agent invocations across the run. Overrides `[defaults] max_total_iterations`. `0` = unlimited.  |
-| `--skip-model-check`        | Disable the pre-run model probe. For CI against fake CLIs or unverified models.                            |
+| `--no-prompt`               | Suppress every interactive prompt (CI-safe). The resume prompt defaults to *Resume*; `--heal` switches to writing `<prd>.proposed.md`. |
 | `--no-progress`             | Suppress the stdout progress stream (banner, per-task headers, summary).                                   |
 | `--quiet-agent`             | On a TTY, drop the live tee of agent stdout/stderr. Spinner and heartbeats remain.                         |
 | `--no-color`                | Disable ANSI escapes in all output (stdout progress stream and stderr diagnostics).                        |
@@ -62,15 +94,30 @@ These apply across multiple subcommands. Subcommand-specific flags (`--analyze`,
 | `-v` / `-q`                 | Aliases for `--log-level=debug` / `--log-level=warn`. Mutually exclusive with `--log-level`.               |
 | `--log-format <text\|json>` | Diagnostic-log format. Default `text`. Does not affect the stdout progress stream.                         |
 
+### Examples
+
+```sh
+zurdo init                                  # bootstrap config + skills in this repo
+zurdo init --force --check-models           # regenerate config, then audit its models
+zurdo validate prds/feature.md              # free, instant grammar check
+zurdo run prds/feature.md --analyze --static-only   # lint hints without an LLM
+zurdo run prds/feature.md                   # the main event
+zurdo run prds/feature.md --resume          # continue after Ctrl-C, no prompt
+zurdo run prds/feature.md --heal            # re-aim grep hints that failed last run
+zurdo verify prds/feature.md                # re-check criteria after hand edits
+zurdo report prds/feature.md --format md    # human-readable run report
+zurdo skills install --all --all-providers  # every bundled skill, every provider
+```
+
 ## Exit codes
 
 | Code | Meaning                                                                                     |
 | ---- | -------------------------------------------------------------------------------------------- |
 | `0`  | Success                                                                                      |
 | `1`  | General failure (unhandled error)                                                            |
-| `2`  | PRD parse / validation error                                                                 |
-| `3`  | Pre-flight failure (missing config, missing CLI on PATH, lock held)                          |
-| `4`  | State mismatch requires `--reset`, or the pre-flight model probe rejected the model          |
+| `2`  | PRD parse / validation error (grammar errors, analyze findings; `--heal`'s input PRD or missing/invalid config) |
+| `3`  | Pre-flight failure (missing config, missing CLI on PATH, lock held; for `--heal`: missing `prd.json` or `[roles.analyzer]`) |
+| `4`  | State mismatch requiring `--reset` (a `prd_hash` mismatch with no valid heal-log chain to reconcile), or the pre-flight model probe rejected a model |
 | `5`  | One or more tasks finished `failed` or `blocked-by-dependency`                               |
 | `6`  | Iteration budget exhausted (`--max-iterations`, incl. under `--analyze --fix`)               |
 | `7`  | `--analyze --fix` thrash detected (warning count non-decreasing across the last 3 iterations)|

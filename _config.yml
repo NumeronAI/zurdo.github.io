@@ -54,7 +54,7 @@ callouts:
 back_to_top: true
 back_to_top_text: "Back to top"
 
-footer_content: 'Copyright &copy; NumeronAI. Documentation for the <strong>zurdo</strong> CLI.'
+footer_content: 'Copyright &copy; Numeron Technologies Inc. Documentation for the <strong>zurdo</strong> CLI.'
 
 exclude:
   - CLAUDE.md

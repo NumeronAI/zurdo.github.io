@@ -28,6 +28,7 @@ If you only read one thing: use a real **em-dash (U+2014)** in your task heading
 **Skills**: rust-style       # optional, comma-separated
 **Agent-timeout**: 30m       # optional, units required (s/m/h)
 **Category**: Backend        # optional, used to group reports
+**Frozen**: docs/adr/*.md    # optional, globs the agent must not modify
 
 ### Requirements
 - req-tests-green: The workspace test suite passes.
@@ -82,7 +83,7 @@ The block must also be **contiguous**: a blank line between metadata fields ends
 
 ## Rule 3: the metadata key enum is closed
 
-Only these six keys are accepted; anything else is an error.
+Only these seven keys are accepted; anything else is an error.
 
 | Key             | Required? | Notes                                                                 |
 | --------------- | --------- | ---------------------------------------------------------------------- |
@@ -92,8 +93,11 @@ Only these six keys are accepted; anything else is an error.
 | `Skills`        | no        | Comma-separated skill names; user-managed (see below).                 |
 | `Agent-timeout` | no        | Duration with an explicit unit: `30s`, `15m`, `1h`. Bare integers fail. |
 | `Category`      | no        | Free-form label. Absent → grouped as `Uncategorized` in reports.       |
+| `Frozen`        | no        | Comma-separated globs of paths the agent must not modify (see below).  |
 
 Each line is exactly `**Key**: value` — the key must be bold-wrapped, with no leading whitespace.
+
+**Frozen paths.** `**Frozen**` lists glob patterns naming files the agent must not touch during the task. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, and negation is not supported. Run-wide globs can also be set in `[verification] protected_paths` config — the two sources are enforced as a union. After each iteration, zurdo diffs the tree against the run-start baseline: a modified frozen path fails the iteration **regardless of criteria results**, and the retry prompt tells the agent to revert. Enforcement needs the baseline, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
 
 **Skills are user-managed.** Skills named in `**Skills**` are not installed by zurdo. Put them where your provider discovers them — project scope (`.claude/skills/<name>/` for Anthropic, `.agents/skills/<name>/` for Codex/Copilot), global scope (e.g. `~/.claude/skills/`), or custom directories via `[skills] search_paths` in config. Zurdo warn-checks their existence at pre-flight but never installs them. List bare names only — zurdo applies the provider-appropriate prefix (`/` for Anthropic and Copilot, `$` for Codex) at prompt-render time.
 
@@ -157,7 +161,7 @@ The rules, all machine-checked:
 
 ## Authoring with the bundled skill
 
-If your agent provider is set up, the bundled `zurdo-prd-author` skill turns PRD authoring into a guided interview — intent → task decomposition → grammar — and pressure-tests every criterion until its hint actually verifies. `zurdo init` installs it; invoke it from your agent CLI like any other skill.
+If your agent provider is set up, the bundled `zurdo-prd-author` skill turns PRD authoring into a guided, evidence-first interview — it drafts the acceptance criteria first, derives tasks from them, then renders the grammar — and pressure-tests every criterion until its hint actually verifies. `zurdo init` installs it; invoke it from your agent CLI like any other skill.
 
 ## Validate early, analyze before you spend
 

@@ -93,6 +93,17 @@ Before a run, zurdo probes each mapped model against its provider CLI (the *mode
 
 Each `[providers.<name>]` block names the CLI binary zurdo shells out to and optional `extra_args` appended to every invocation. The binary must be on your `PATH` and authenticated — zurdo holds no credentials of its own. Details on how each CLI is driven are on the [Providers](providers.md) page.
 
+## Protected paths
+
+An optional `[verification]` table declares run-wide **frozen globs** — paths no agent may modify during any task of a run:
+
+```toml
+[verification]
+protected_paths = ["Cargo.lock", "docs/**/*.md"]
+```
+
+These are enforced in union with each task's `**Frozen**` metadata: after every iteration, any protected path appearing in the diff against the run-start baseline fails the iteration regardless of criteria results. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, negation is not supported. Enforcement requires the baseline capture, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
+
 ## Skills search paths
 
 Skills referenced in a task's `**Skills**` metadata are user-managed. Beyond the provider's native discovery paths (project-scope `.claude/skills/` or `.agents/skills/`, and their global equivalents), you can register extra directories:

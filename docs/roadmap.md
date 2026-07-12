@@ -7,46 +7,32 @@ nav_order: 9
 # Roadmap
 {: .no_toc }
 
-What's moving in zurdo, relative to the released **v1.1.3** these docs describe. Items here are subject to change until they ship.
+What's moving in zurdo, relative to the released **v1.2.0** these docs describe. Items here are subject to change until they ship.
 
 1. TOC
 {:toc}
 
-## Coming in the next release
+## Just shipped: v1.2.0 (2026-07-12)
 
-These are implemented on the main branch and land with the next tag.
+The **evidence-first verification** milestone — knowing a criterion passed is half the story; v1.2.0 shows where the evidence came from. Everything below is documented in the main docs; highlights:
 
-### Line-anchored grep patterns
-
-`[grep:]` / `[no-grep:]` patterns will compile in **multi-line mode**: `^` and `$` anchor at line boundaries, the way command-line `grep` users expect. Today they anchor to the start/end of the whole file, so a hint like `[grep: ^## Heading in doc.md]` can never pass unless the file *begins* with the heading — a silent "pattern not matched" even when the agent wrote the content correctly.
-
-The new semantics apply uniformly to the run-time evaluator and the `validate`/`--analyze` grep lints, so authoring-time verdicts match run-time verdicts. Patterns without anchors are unaffected; explicit `(?m)` prefixes remain valid and become redundant. An existing anchored `[no-grep:]` hint may flip from pass to fail — that flip is the check finally seeing the line it was aimed at.
-
-### Pre-flight criterion provenance
-
-Pre-flight already runs every criterion before the agent does; the next release **keeps** that snapshot instead of discarding it. Each task's `prd.json` entry records a per-criterion pre-flight verdict, captured once when the task first leaves `pending` — separating "the agent made this criterion true" from "this criterion was already true."
-
-On top of it, a criterion that was already green at pre-flight is flagged in live progress with the tail `already passed at pre-flight — proves nothing about this run`, and the summary table gains a `passed-at-preflight` tally. This is provenance, not policy: exit codes and status transitions are unaffected — legitimate pre-flight-green cases exist (resumed runs, idempotent re-runs, criteria a dependency already satisfied). The point is that a human reading the report can weigh the evidence.
-
-### Baseline tree capture
-
-Before the first task is evaluated, `zurdo run` will snapshot the working tree as you handed it over — tracked, modified, and untracked files alike — recording a git tree hash and capture metadata at `.zurdo/<slug>/baseline`. This answers "what was already there" for the whole run, so later stages can tell the agent's edits apart from the tree it started from.
-
-The capture never touches your git state: it stages into a scratch index via `GIT_INDEX_FILE`, leaving `.git/index` and the reflog byte-for-byte unchanged. Outside a git repo (or with no usable `git` on `PATH`) it degrades to a single warning and the run proceeds normally.
+- **Baseline tree capture.** `zurdo run` snapshots the working tree at run start (without touching your git state) and writes the run's full diff to `.zurdo/<slug>/run-diff.patch` at the end. [Details](how-it-works.md#evidence-integrity).
+- **Pre-flight criterion provenance.** Per-criterion pre-flight verdicts are persisted, and a criterion that was already green before the agent ran is flagged in live progress and tallied as `passed-at-preflight` in the summary — display-only, never a failure.
+- **Evidence-modified warnings.** A `warning:` diagnostic when files that hints rely on as evidence changed since baseline.
+- **Frozen paths.** Per-task `**Frozen**` metadata and run-wide `[verification] protected_paths` config declare globs the agent must not touch; a violating iteration fails regardless of criteria results. [Details](writing-prds.md#rule-3-the-metadata-key-enum-is-closed).
+- **Retry prompts carry real feedback.** Iteration 2+ prompts now include the prior attempt's failing checks and the agent's narrative tail — previously a retrying agent was told nothing about what had just failed.
+- **Line-anchored grep patterns.** `^`/`$` in `[grep:]`/`[no-grep:]` now anchor at line boundaries, the way command-line `grep` behaves. Anchored hints written against the old whole-file semantics may flip verdicts. [Details](hints.md#regex-semantics-for-grep--no-grep).
+- **Evidence-first PRD authoring.** The bundled `zurdo-prd-author` skill now drafts criteria first and derives tasks from them, instead of the reverse.
 
 ## In development
 
-The next milestone deepens the same theme — **evidence you can trust** — building on the baseline capture:
-
-- **Run-diff capture.** Compute and persist everything a run changed, as a patch under `.zurdo/<slug>/`.
-- **Evidence-modified warnings.** When the run itself modified a file that a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint reads as evidence, the report says so. A warning, never a failure — often the task *is* "edit that file" — but it goes on the record.
-- **Frozen paths.** An enforcement tier: glob-declared paths the agent must not touch (run-wide in config, or per task in PRD metadata). Any frozen path in the run diff fails the iteration regardless of criteria results.
-- **Evidence-first PRD authoring.** The bundled `zurdo-prd-author` skill is being reworked to start from the evidence — criteria are drafted first and tasks derived from them, instead of the reverse.
+The next milestone is being scoped. Nothing is committed publicly yet — watch this page after the next release, or [open an issue](https://github.com/ElOrlis/zurdo-dist/issues) to influence what ships.
 
 ## Release history
 
 | Version | Date       | Highlights                                                                                          |
 | ------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| 1.2.0   | 2026-07-12 | Evidence-first verification: baseline capture, pre-flight provenance, evidence-modified warnings, frozen paths, retry-prompt feedback, line-anchored grep. |
 | 1.1.3   | 2026-07-02 | `--analyze` prompts now reference all seven hint types (the analyzer previously never suggested absence hints). |
 | 1.1.2   | 2026-07-01 | Parser accepts `### Requirements` in its documented position (before `### Description`).             |
 | 1.1.1   | 2026-06-26 | Bundled `zurdo-prd-author` skill's grammar reference updated for Requirements/`[proves:]`.           |
