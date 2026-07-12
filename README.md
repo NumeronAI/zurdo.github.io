@@ -1,7 +1,7 @@
 # zurdo documentation
 
 Documentation site for the **zurdo** CLI, published with GitHub Pages at
-<https://numeronai.github.io/zurdo.github.io/>.
+<https://zurdo.numeron.ai>.
 
 ## Local preview
 
@@ -10,12 +10,13 @@ bundle install
 bundle exec jekyll serve
 ```
 
-Then open <http://localhost:4000/zurdo.github.io/>.
+Then open <http://localhost:4000/>.
 
 ## Structure
 
 - `index.md` — landing page
 - `docs/` — documentation pages (installation, usage, commands, configuration)
-- `_config.yml` — Jekyll configuration (theme, baseurl)
+- `_config.yml` — Jekyll configuration (theme, site URL)
+- `CNAME` — custom domain (`zurdo.numeron.ai`); do not delete
 
 Pushing to `main` deploys automatically (Pages builds from the branch root).

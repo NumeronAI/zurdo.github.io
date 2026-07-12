@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Documentation site for the **zurdo** CLI, hosted on GitHub Pages. Despite the repo name, this is a *project* site under the NumeronAI org, served at `https://numeronai.github.io/zurdo.github.io/` (the repo would need to be `NumeronAI.github.io` to get the root URL).
+Documentation site for the **zurdo** CLI, hosted on GitHub Pages at the custom domain `https://zurdo.numeron.ai` (DNS: CNAME at Namecheap pointing to `numeronai.github.io`). The repo is a *project* site under the NumeronAI org; without the custom domain it would serve at `https://numeronai.github.io/zurdo.github.io/`.
 
 ## Architecture
 
@@ -12,15 +12,16 @@ Plain Jekyll site using the GitHub Pages legacy branch build — pushes to `main
 
 - `index.md` — landing page
 - `docs/*.md` — documentation pages (installation, usage, commands, configuration)
-- `_config.yml` — theme (`jekyll-theme-minimal`), `baseurl: /zurdo.github.io`, `jekyll-relative-links`
+- `_config.yml` — theme (`jekyll-theme-minimal`), empty `baseurl` (custom domain serves from root), `jekyll-relative-links`
+- `CNAME` — the custom domain; deleting it detaches the domain from Pages
 
-Because `baseurl` is non-empty, always link between pages with relative Markdown links (e.g. `[Usage](docs/usage.md)`) — `jekyll-relative-links` converts them; never hardcode absolute `/...` paths.
+Link between pages with relative Markdown links (e.g. `[Usage](docs/usage.md)`) — `jekyll-relative-links` converts them, and they stay correct if the domain or baseurl ever changes.
 
 ## Commands
 
 ```sh
 bundle install            # once; uses the github-pages gem
-bundle exec jekyll serve  # local preview at http://localhost:4000/zurdo.github.io/
+bundle exec jekyll serve  # local preview at http://localhost:4000/
 ```
 
 There is no test suite. Build errors after a push appear in the repo's Actions tab (pages-build-deployment), not in Settings > Pages.
