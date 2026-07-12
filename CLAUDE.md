@@ -10,10 +10,12 @@ Documentation site for the **zurdo** CLI, hosted on GitHub Pages at the custom d
 
 Plain Jekyll site using the GitHub Pages legacy branch build — pushes to `main` (root folder) deploy automatically; there is no GitHub Actions workflow and none is needed.
 
-- `index.md` — landing page
-- `docs/*.md` — documentation pages (installation, usage, commands, configuration)
-- `_config.yml` — theme (`jekyll-theme-minimal`), empty `baseurl` (custom domain serves from root), `jekyll-relative-links`
+- `index.md` — landing page (pitch, quickstart, doc map)
+- `docs/*.md` — documentation pages (how-it-works, installation, usage, writing-prds + hints child page, commands, configuration, providers, roadmap)
+- `_config.yml` — Just the Docs via `remote_theme`, empty `baseurl` (custom domain serves from root), `jekyll-relative-links`, mermaid enabled
 - `CNAME` — the custom domain; deleting it detaches the domain from Pages
+
+Content is hand-mirrored from the **private** `~/workspace/utils/zurdo` repo (source of truth). The docs describe the released zurdo version stamped on the home page; unreleased work goes only on `docs/roadmap.md` (Unreleased changelog items + current-milestone themes — internal proposals stay private). Product bug reports point to the public `ElOrlis/zurdo-dist` repo, docs feedback to this repo.
 
 Link between pages with relative Markdown links (e.g. `[Usage](docs/usage.md)`) — `jekyll-relative-links` converts them, and they stay correct if the domain or baseurl ever changes.
 

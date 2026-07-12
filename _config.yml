@@ -31,8 +31,14 @@ aux_links:
 aux_links_new_tab: true
 
 nav_external_links:
-  - title: Report an issue
+  - title: Report a zurdo issue
+    url: https://github.com/ElOrlis/zurdo-dist/issues
+  - title: Docs feedback
     url: https://github.com/NumeronAI/zurdo.github.io/issues
+
+# Renders ```mermaid code fences (used on docs/how-it-works.md)
+mermaid:
+  version: "9.4.3"
 
 callouts:
   note:
