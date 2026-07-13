@@ -162,4 +162,4 @@ Notes:
 
 If your symptom isn't here, run with `-v` (`--log-level=debug`) and check `.zurdo/<slug>/progress.log` — every state transition is structured there.
 
-Next: [Writing PRDs](writing-prds.md)
+Next: [Effective use](effective-use.md)

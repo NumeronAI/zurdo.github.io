@@ -80,6 +80,7 @@ A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
 - [How it works](docs/how-it-works.md) — the verification loop, state model, and crash recovery
 - [Installation](docs/installation.md) — Homebrew, release tarballs, and prerequisites
 - [Usage](docs/usage.md) — everyday workflows, run output, CI integration, troubleshooting
+- [Effective use](docs/effective-use.md) — the research → PRD → run pipeline, framed with Anthropic's AI Fluency 4Ds
 - [Writing PRDs](docs/writing-prds.md) — the PRD grammar and its load-bearing rules
 - [Hints reference](docs/hints.md) — all seven verification hint types, with examples
 - [Commands](docs/commands.md) — full command and flag reference, exit codes
