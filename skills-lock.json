@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "github-pages": {
+      "source": "julianobarbosa/claude-code-skills",
+      "sourceType": "github",
+      "skillPath": "skills/github-pages/SKILL.md",
+      "computedHash": "fd8a39c304c9f5a05905f604d1f08928b36840e0256e0875f602c035c31e2d14"
+    },
+    "grill-me": {
+      "source": "alirezarezvani/claude-skills",
+      "sourceType": "github",
+      "skillPath": "engineering/grill-me/skills/grill-me/SKILL.md",
+      "computedHash": "2c7cc3444a7e7b8c510d2cf366cecf7374d054b26421aa5ab449c4761d28294e"
+    },
+    "seo-aeo-best-practices": {
+      "source": "sanity-io/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/seo-aeo-best-practices/SKILL.md",
+      "computedHash": "edb99db85683ff99678fcb1bebc3a5653c3ea927eea9ee2534f19be86c7b8b81"
+    }
+  }
+}
