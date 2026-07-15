@@ -121,6 +121,89 @@ Concretely:
 - **Keep the receipts.** `.zurdo/<slug>/` is a complete audit trail — prompts, agent output, per-criterion verdicts, the run diff. In CI, capture `reports/*.json` and `iterations/*` as artifacts so post-mortems have evidence instead of vibes.
 - **Be honest about the guardrails' limits.** Frozen-path enforcement is tamper-evident, not tamper-proof, and `[manual]` criteria are only as good as the human who checks them.
 
+## A worked example, end to end
+
+Everything above, applied once. The repo is an axum web service; the feature is rate-limiting its `/login` endpoint.
+
+**Step 1 — Research.** Half an hour of reading, no zurdo involved. It turns up: middleware lives in `src/middleware/` and is registered in `src/app.rs`; integration tests drive the router with `tower::ServiceExt::oneshot`; config is centralized in `src/config.rs`; and ADR-011 already fixed the algorithm (fixed-window) — that decision is closed, not up for relitigating. "Done" becomes observable: the over-limit request returns 429, and a test proves it.
+
+**Step 2 — Scope.** Two verifiable outcomes, so two tasks: the limiter middleware itself (provable by unit tests), and wiring it onto `/login` (provable by an integration test). The second gets `Depends-on: [task-limiter]` so it can't build on a broken limiter, and the ADR directory gets frozen so the agent can't "helpfully" update the record of a decision it didn't make.
+
+**Step 3 — The PRD.** Hints first, prose after — every criterion below existed as a `[shell:]`/`[grep:]` payload before its sentence did:
+
+```markdown
+# PRD: Rate-limit the login endpoint
+
+## Task: task-limiter — Fixed-window rate limiter middleware
+**Effort**: medium
+**Depends-on**: []
+**Frozen**: docs/adr/*.md
+
+### Requirements
+
+- req-window: Requests above the per-IP limit within the window are rejected.
+- req-configurable: Limit and window come from AppConfig, not hard-coded values.
+
+### Description
+
+Add a fixed-window rate limiter as tower middleware in
+src/middleware/rate_limit.rs, following the shape of the existing middleware
+in that directory. Per-IP counters; limit and window sourced from AppConfig
+(src/config.rs). ADR-011 fixes the algorithm choice — do not revisit it.
+
+### Acceptance Criteria
+
+- [ ] limiter unit tests pass [shell: cargo test rate_limit::] [proves:req-window]
+- [ ] limit is read from config [grep: rate_limit in src/config.rs] [proves:req-configurable]
+- [ ] window is not hard-coded [no-grep: Duration::from_secs\(60\) in src/middleware/rate_limit.rs] [proves:req-configurable]
+
+## Task: task-wire-login — Apply the limiter to /login
+**Effort**: low
+**Depends-on**: [task-limiter]
+
+### Requirements
+
+- req-429: A client exceeding the limit on /login receives HTTP 429.
+
+### Description
+
+Wire the rate_limit middleware onto the /login route in src/app.rs. Add an
+integration test in tests/login_rate_limit.rs that drives the router with
+tower::ServiceExt::oneshot and asserts the over-limit response is 429 with a
+Retry-After header.
+
+### Acceptance Criteria
+
+- [ ] over-limit login returns 429 [shell: cargo test --test login_rate_limit] [proves:req-429]
+- [ ] workspace still green [shell: cargo test --workspace]
+- [ ] rate-limit error copy approved by product [manual]
+```
+
+**Steps 4–5 — Validate and analyze.** `zurdo validate` fails instantly on the first save — the editor had autocorrected the task heading's em-dash to an en-dash — and passes once fixed. `zurdo --analyze` then earns its keep twice on the first draft (which differed from the PRD above): a static lint flagged `[grep: .* in src/app.rs]` as a tautology that matches anything, and the LLM critique flagged `req-configurable` as declared but proved by nothing. The tautology became the `--test login_rate_limit` shell hint; the uncovered requirement became the `[grep:]`/`[no-grep:]` pair on `src/config.rs` and the middleware file. Total cost so far: one analyze call.
+
+**Step 6 — The run.** `zurdo run prds/rate-limit-login.md`. The first iteration of `task-limiter` is instructive — the agent wrote a working limiter but hard-coded the window:
+
+```
+─── task-limiter: Fixed-window rate limiter middleware ─── effort=medium, deps=[]
+  → iteration 1 of 5
+  ✓ agent completed: exit=0, 3m 51s
+  → running 3 criteria
+    ✓ shell: cargo test rate_limit:: (9.2s)
+    ✓ grep: rate_limit in src/config.rs
+    ✗ no-grep: Duration::from_secs\(60\) in src/middleware/rate_limit.rs
+      pattern found — window is hard-coded
+  iteration 1: 2/3 criteria passed; will retry
+  → iteration 2 of 5
+  ...
+  ✓ task-limiter: passed in 2 iterations (7m 03s)
+```
+
+The retry prompt carried that failure verbatim, so iteration 2 fixed the actual defect instead of guessing. Note what did *not* happen: the agent's own claim of success after iteration 1 was never consulted — the `no-grep` hint caught what a self-report would have waved through.
+
+**Step 7 — Review.** The summary shows `task-limiter passed` and `task-wire-login passed-pending-review` — the `[manual]` criterion is holding the door. Reading `.zurdo/<slug>/run-diff.patch` takes five minutes because the scope was fenced in step 2: two new files, two touched ones, no drive-by edits, ADRs untouched. The error copy gets an actual look (it was wrong — "try again later" with no `Retry-After` mention — one small hand-edit), then `zurdo verify prds/rate-limit-login.md` confirms every criterion still passes against the edited tree.
+
+**Step 8 — Ship.** A branch, a commit, a PR with a human-written description — none of it zurdo's doing, all of it informed by evidence zurdo left on disk.
+
 ## The habits, in one table
 
 | AI Fluency "D" | Pipeline steps | The habit                                                                                       |
