@@ -154,7 +154,7 @@ Zurdo checks these at pre-flight (warn-only if a named skill is missing) but nev
 | `lumen.max_file_bytes`    | Files larger than this are skipped.                              | `2097152` |
 | `lumen.gc_grace_minutes`  | Index generations older than this window become GC-eligible.     | `10`    |
 
-The experimental `[symbol:]`/`[references:]`/`[callers:]` hint types additionally require the `[experimental] structural_hints = true` gate; setting the gate while `lumen.enabled = false` is a config-load error. See [Structural hints](hints.md#structural-hints-experimental). A PRD with no structural hints never touches the index.
+The experimental `[symbol:]`/`[references:]`/`[callers:]` hint types additionally require the `[experimental] structural_hints = true` gate; setting the gate while `lumen.enabled = false` is a config-load error. A PRD with no structural hints never touches the index. The full subsystem — index lifecycle, per-language capabilities, `zurdo lumen` CLI — is on [Structural verification](lumen.md).
 
 ## The Vela watcher
 
@@ -163,10 +163,10 @@ The experimental `[symbol:]`/`[references:]`/`[callers:]` hint types additionall
 | Key                  | Meaning                                                      | Default |
 | -------------------- | ------------------------------------------------------------- | ------- |
 | `vela.enabled`       | Auto-start the watcher from structural operations.           | `false` |
-| `vela.idle_minutes`  | Idle window before a watcher-triggered reindex.              | `30`    |
-| `vela.debounce_ms`   | Debounce window for filesystem events.                       | `200`   |
+| `vela.idle_minutes`  | The daemon shuts itself down after this long with no filesystem events and no client connections. `0` disables the timeout. | `30`    |
+| `vela.debounce_ms`   | Debounce window coalescing bursty filesystem events.         | `200`   |
 
-Manage it explicitly with `zurdo vela serve|start|stop|status`; `zurdo lumen status` also reports the watcher's state.
+Manage it explicitly with `zurdo vela serve|start|stop|status`; `zurdo lumen status` also reports the watcher's state. Full daemon semantics are on [Structural verification](lumen.md#the-vela-watcher).
 
 ## Reason: diagnosis and lessons
 

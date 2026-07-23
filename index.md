@@ -47,6 +47,10 @@ grid_navigation:
       excerpt: The seven core hint types and the experimental structural hints, with examples.
       cta: Read more
       url: '/docs/hints.html'
+    - title: Structural verification
+      excerpt: The Lumen code index, structural hints, and the Vela watcher.
+      cta: Read more
+      url: '/docs/lumen.html'
     - title: Diagnosis & lessons
       excerpt: Stall detection, reasoner verdicts, and the cross-run lesson library.
       cta: Read more
@@ -84,7 +88,7 @@ Zurdo descends from the **Ralph technique** — run a coding agent in a loop aga
 | **The loop is unbounded** — it can circle forever | Per-task `Max-Attempts`, run-wide `--max-iterations`, [stall detection](docs/reason.md), and exit codes that say *why* it stopped |
 | **State is fragile** — a plan file the agent itself rewrites | Everything lives under `.zurdo/<slug>/` — atomic, owned by zurdo, resumable after Ctrl-C or a crash                        |
 
-And a loop that stops failing the *same way* twice: with the opt-in [reason subsystem](docs/reason.md), a stalled task gets a one-call LLM diagnosis — guide the retry, route a bad hint to `--heal`, or halt the spend — and every recovery is distilled into a **lesson** future runs in the repo are told about up front.
+And a loop that stops failing the *same way* twice: with the opt-in [reason subsystem](docs/reason.md), a stalled task gets a one-call LLM diagnosis — guide the retry, route a bad hint to `--heal`, or halt the spend — and every recovery is distilled into a **lesson** future runs in the repo are told about up front. When a string match isn't proof enough, opt-in [structural hints](docs/lumen.md) verify *code facts* — this definition exists, that function is actually called — against the Lumen code index instead of grepping for text.
 
 Two deliberate non-features keep it predictable: **provider-agnostic** (shells out to the [`claude`](https://docs.claude.com/en/docs/claude-code/overview), [`codex`](https://github.com/openai/codex), and [`copilot`](https://github.com/github/gh-copilot) CLIs — no SDKs, no API keys handed to zurdo) and **no git automation** (branching, committing, and PRs stay yours).
 

@@ -16,8 +16,8 @@ page_nav:
         content: Writing PRDs
         url: '/docs/writing-prds.html'
     next:
-        content: Diagnosis & lessons
-        url: '/docs/reason.html'
+        content: Structural verification
+        url: '/docs/lumen.html'
 ---
 
 Hints are the machine-checkable half of an acceptance criterion. After every agent iteration, zurdo executes each hint itself and decides pass/fail — the agent's opinion is never consulted.
@@ -127,7 +127,7 @@ The load-bearing rules:
 - **Unique resolution or failure.** Zero candidates fails with "not found"; multiple candidates fail listing them. Dynamic dispatch, trait objects, and macro-generated names deliberately fail as ambiguous rather than guessing — a structural hint never false-passes.
 - **Failures are typed** — `symbol_unresolved` / `binding_unresolved` — and passing verdicts record the resolved identity and source span in `prd.json` and the report's `structural_verdicts`.
 
-Supported languages: Rust, Python, Go, TypeScript, and JavaScript (including TSX/JSX). Structural hints verify the **current working tree** — a task can satisfy its own structural criteria in the same run. Their target files count as evidence paths (frozen-overlap lints, evidence-modified warnings apply). A PRD with no structural hints never touches the index; one that has them triggers an index repair at pre-flight, and a non-ready index is a pre-flight error (`zurdo lumen rebuild` is the remedy) — never a silent criterion failure. The optional [Vela watcher](configuration.md#the-vela-watcher) keeps the index warm between runs.
+Supported languages: Rust, Python, Go, TypeScript, and JavaScript (including TSX/JSX). Structural hints verify the **current working tree** — a task can satisfy its own structural criteria in the same run. Their target files count as evidence paths (frozen-overlap lints, evidence-modified warnings apply). The full subsystem — how the Lumen index works, exactly which constructs resolve per language, the Vela watcher that keeps the index warm, and the troubleshooting table — has its own page: [Structural verification](lumen.md).
 
 ## Writing hints that hold up
 
@@ -136,4 +136,4 @@ Supported languages: Rust, Python, Go, TypeScript, and JavaScript (including TSX
 - **Let the failure diagnose itself.** Prefer `[shell: cargo test auth::token_expiry]` over one giant `[shell: ./check-everything.sh]`; per-criterion pass/fail in the run output then tells you *what* broke.
 - **Use `[manual]` honestly.** It carries zero machine signal — it exists to put a human-review obligation on the record, not to make a task pass.
 
-Next: [Diagnosis & lessons](reason.md)
+Next: [Structural verification](lumen.md)

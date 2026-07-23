@@ -13,8 +13,8 @@ micro_nav: true
 # Page navigation
 page_nav:
     prev:
-        content: Hints reference
-        url: '/docs/hints.html'
+        content: Structural verification
+        url: '/docs/lumen.html'
     next:
         content: Commands
         url: '/docs/commands.html'

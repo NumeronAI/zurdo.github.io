@@ -87,7 +87,7 @@ Evidence-first matters because it forces the three layers of description AI Flue
 
 Two habits worth building, with or without the skill:
 
-- **Write the hint before the criterion prose.** If you can't produce a `[shell:]`, `[http:]`, `[grep:]`, or `[file-exists:]` payload for it, it's either `[manual]` or it's not a criterion yet. The full menu is on the [Hints reference](hints.md).
+- **Write the hint before the criterion prose.** If you can't produce a `[shell:]`, `[http:]`, `[grep:]`, or `[file-exists:]` payload for it, it's either `[manual]` or it's not a criterion yet. The full menu is on the [Hints reference](hints.md) — and for "this code is actually wired in" criteria that grep can't prove, the opt-in [structural hints](lumen.md) verify definitions and call relationships instead of text.
 - **Make criteria fail on the current tree.** A criterion that's already green before the agent runs proves nothing about the run — zurdo will flag it at pre-flight, but it's better authored out.
 
 ## Steps 4–5 — Validate and analyze before you spend (Discernment, pre-flight)

@@ -103,7 +103,7 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
 
 Every agent invocation leaves a full audit trail: the exact prompt sent (`.prompt`), and the agent's stdout/stderr (`.out`/`.err`), per task and attempt.
 
-Two directories are **repository-scoped** rather than per-PRD: `.zurdo/lumen/` (the optional structural code index behind the [experimental structural hints](hints.md#structural-hints-experimental)) and `.zurdo/reason/library/` (the [cross-run lesson library](reason.md) — lessons learned on one PRD benefit every other PRD in the repo). `zurdo run --reset` archives only the slug's state; both repo-scoped stores survive it.
+Two directories are **repository-scoped** rather than per-PRD: `.zurdo/lumen/` (the optional [Lumen structural index](lumen.md) behind the experimental structural hints) and `.zurdo/reason/library/` (the [cross-run lesson library](reason.md) — lessons learned on one PRD benefit every other PRD in the repo). `zurdo run --reset` archives only the slug's state; both repo-scoped stores survive it.
 
 <div class="callout callout--info" markdown="1">
 **Note** Add `.zurdo/` to your `.gitignore`. Zurdo prints a one-time hint if you forget — but it never modifies your `.gitignore` itself.

@@ -39,10 +39,10 @@ The complete CLI surface as of zurdo v1.6.0. Run `zurdo <subcommand> --help` for
 | `zurdo reason match <prd>`    | Preview which [library lessons](reason.md) would match each task of a PRD — read-only, never updates lesson stats |
 | `zurdo reason status`         | Lesson-library count (grouped by match key) plus per-slug diagnosis-block counts                |
 | `zurdo reason clear`          | Delete the lesson library. Confirms on a TTY; `--yes` for non-interactive use                   |
-| `zurdo lumen status`          | Report the [structural index](hints.md#structural-hints-experimental)'s state (and the Vela watcher's, when configured) |
+| `zurdo lumen status`          | Report the [structural index](lumen.md)'s state (and the Vela watcher's, when configured)       |
 | `zurdo lumen rebuild`         | Rebuild the structural index from scratch                                                       |
-| `zurdo lumen clear`           | Delete `.zurdo/lumen/`. Confirms on a TTY                                                       |
-| `zurdo vela serve` / `start` / `stop` / `status` | Run or manage the optional background watcher that keeps the Lumen index fresh |
+| `zurdo lumen clear`           | Delete `.zurdo/lumen/`. Confirms on a TTY; `--yes` for non-interactive use                      |
+| `zurdo vela serve` / `start` / `stop` / `status` | Run or manage the optional [background watcher](lumen.md#the-vela-watcher) that keeps the Lumen index fresh |
 
 ## Authoring modes on `zurdo run`
 

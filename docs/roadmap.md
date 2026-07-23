@@ -25,7 +25,7 @@ The capstone of the **self-healing loop** arc (v1.3 → v1.6). Everything below 
 
 - **The reason subsystem, complete.** Stall detection on failure fingerprints, one-call reasoner diagnosis with `retry_with_guidance` / `halt_task` / `suggest_heal` verdicts, and a repository-scoped **lesson library**: a task that stalls and then recovers leaves behind a rule future runs are told about before they trip over the same quirk. Opt-in, fail-open, and never able to mark work passed. [Details](reason.md).
 - **Lessons reach every authoring surface.** The `zurdo reason match` preview CLI, a lessons section in `--analyze`, lesson injection into `--heal` proposals, and read-only lesson consultation by the bundled `zurdo-prd-author` and `zurdo-hint-debugger` skills.
-- **Structural hints, executable end-to-end** (v1.3–1.4, experimental). `[symbol:]`, `[references:]`, and `[callers:]` verify facts about named code symbols against the persistent Lumen index, with the optional Vela watcher keeping it fresh. [Details](hints.md#structural-hints-experimental).
+- **Structural hints, executable end-to-end** (v1.3–1.4, experimental). `[symbol:]`, `[references:]`, and `[callers:]` verify facts about named code symbols against the persistent Lumen index, with the optional Vela watcher keeping it fresh. [Details](lumen.md).
 - **A readable live tee** (v1.5). Agent output renders as step summaries on a TTY (`• tool Bash: …`, `• edit: …`) for all three provider CLIs; `--raw-agent` restores the firehose. [Details](usage.md#reading-the-agent-as-it-works).
 
 ## In development
