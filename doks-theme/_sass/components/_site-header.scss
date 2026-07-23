@@ -28,7 +28,8 @@
 	}
 
 	img {
-		height: calc(5.625rem - 1px);
+		height: calc((5.625rem - 1px) * .9);
+		vertical-align: middle;
 	}
 }
 
