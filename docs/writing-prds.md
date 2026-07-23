@@ -1,20 +1,30 @@
 ---
+# Page settings
 layout: default
-title: Writing PRDs
-nav_order: 6
-has_children: true
----
+comments: false
 
-# Writing PRDs
-{: .no_toc }
+# Hero section
+title: Writing PRDs
+description: "The PRD grammar and its load-bearing rules."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Effective use
+        url: '/docs/effective-use.html'
+    next:
+        content: Hints reference
+        url: '/docs/hints.html'
+---
 
 Zurdo PRDs are markdown with a strict, machine-checked grammar. Strictness is the point: a PRD that parses is a PRD whose acceptance criteria zurdo can execute.
 
-1. TOC
-{:toc}
-
-If you only read one thing: use a real **em-dash (U+2014)** in your task headings, leave **no blank line** between the H2 and the metadata block, and give **every acceptance criterion at least one hint**.
-{: .important }
+<div class="callout callout--danger" markdown="1">
+**Important** If you only read one thing: use a real **em-dash (U+2014)** in your task headings, leave **no blank line** between the H2 and the metadata block, and give **every acceptance criterion at least one hint**.
+</div>
 
 ## The 60-second tour
 

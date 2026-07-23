@@ -1,16 +1,23 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Roadmap
-nav_order: 10
+description: "What's coming in the next release and what's in development."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Providers
+        url: '/docs/providers.html'
 ---
 
-# Roadmap
-{: .no_toc }
-
 What's moving in zurdo, relative to the released **v1.2.0** these docs describe. Items here are subject to change until they ship.
-
-1. TOC
-{:toc}
 
 ## Just shipped: v1.2.0 (2026-07-12)
 

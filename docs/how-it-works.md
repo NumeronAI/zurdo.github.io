@@ -1,14 +1,27 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: How it works
-nav_order: 2
+description: "The verification loop, state model, and crash recovery."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Home
+        url: '/'
+    next:
+        content: Installation
+        url: '/docs/installation.html'
+
+# Mermaid diagrams on this page
+mermaid: true
 ---
-
-# How it works
-{: .no_toc }
-
-1. TOC
-{:toc}
 
 ## The verification loop
 
@@ -81,8 +94,9 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
 
 Every agent invocation leaves a full audit trail: the exact prompt sent (`.prompt`), and the agent's stdout/stderr (`.out`/`.err`), per task and attempt.
 
-Add `.zurdo/` to your `.gitignore`. Zurdo prints a one-time hint if you forget — but it never modifies your `.gitignore` itself.
-{: .note }
+<div class="callout callout--info" markdown="1">
+**Note** Add `.zurdo/` to your `.gitignore`. Zurdo prints a one-time hint if you forget — but it never modifies your `.gitignore` itself.
+</div>
 
 ## Evidence integrity
 

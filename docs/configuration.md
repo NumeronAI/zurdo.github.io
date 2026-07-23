@@ -1,14 +1,24 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Configuration
-nav_order: 8
+description: "The .zurdo/config.toml reference."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Commands
+        url: '/docs/commands.html'
+    next:
+        content: Providers
+        url: '/docs/providers.html'
 ---
-
-# Configuration
-{: .no_toc }
-
-1. TOC
-{:toc}
 
 Zurdo reads its configuration from `.zurdo/config.toml` at the **repo root** — per repository, not per user. `zurdo init` writes the default shown below.
 

@@ -1,17 +1,26 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Hints reference
-parent: Writing PRDs
-nav_order: 1
+description: "All seven verification hint types, with examples."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Writing PRDs
+        url: '/docs/writing-prds.html'
+    next:
+        content: Commands
+        url: '/docs/commands.html'
 ---
 
-# Hints reference
-{: .no_toc }
-
 Hints are the machine-checkable half of an acceptance criterion. After every agent iteration, zurdo executes each hint itself and decides pass/fail — the agent's opinion is never consulted.
-
-1. TOC
-{:toc}
 
 ## The seven hint types
 
@@ -55,8 +64,9 @@ Mixing `[manual]` with automated hints means the automated portion still gates; 
 
 Patterns are Rust `regex` syntax, matched against the file's contents in **multi-line mode**: `^` and `$` anchor at line boundaries, the way command-line `grep` behaves. `[grep: ^## Heading in doc.md]` passes if any line starts with the heading. Explicit `(?m)` prefixes remain valid and are redundant. The same semantics apply everywhere a pattern is evaluated — the run-time verifier, the `validate`/`--analyze` grep lints, and `--heal` verification — so authoring-time verdicts match run-time verdicts.
 
-**Upgrading from v1.1.x?** Patterns used to anchor to the start/end of the entire file. An anchored `[no-grep:]` hint that passed under the old semantics may now fail — that flip is the check finally seeing the line it was aimed at. Patterns without anchors are unaffected.
-{: .note }
+<div class="callout callout--info" markdown="1">
+**Note** **Upgrading from v1.1.x?** Patterns used to anchor to the start/end of the entire file. An anchored `[no-grep:]` hint that passed under the old semantics may now fail — that flip is the check finally seeing the line it was aimed at. Patterns without anchors are unaffected.
+</div>
 
 ## Prefer absence hints over shell negation
 

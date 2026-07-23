@@ -1,24 +1,68 @@
 ---
-layout: default
-title: Home
-nav_order: 1
-description: Zurdo drives LLM coding agents through a PRD's tasks in a loop — and independently verifies every acceptance criterion.
+# Page settings
+layout: homepage
+keywords: zurdo, CLI, LLM, coding agents, PRD, verification loop
 permalink: /
+
+# Hero section
+title: zurdo
+description: A CLI that drives LLM coding agents through a PRD's tasks in a loop — and independently verifies every acceptance criterion instead of trusting the agent's self-report.
+buttons:
+    - content: Get started
+      url: '/docs/installation.html'
+      external_url: false
+    - icon: arrow-right
+      content: How it works
+      url: '/docs/how-it-works.html'
+      external_url: false
+
+# Grid navigation
+grid_navigation:
+    - title: How it works
+      excerpt: The verification loop, state model, and crash recovery.
+      cta: Read more
+      url: '/docs/how-it-works.html'
+    - title: Installation
+      excerpt: Homebrew, release tarballs, and prerequisites.
+      cta: Read more
+      url: '/docs/installation.html'
+    - title: Usage
+      excerpt: Everyday workflows, run output, CI integration, troubleshooting.
+      cta: Read more
+      url: '/docs/usage.html'
+    - title: Effective use
+      excerpt: The research → PRD → run pipeline, framed with Anthropic's AI Fluency 4Ds.
+      cta: Read more
+      url: '/docs/effective-use.html'
+    - title: Writing PRDs
+      excerpt: The PRD grammar and its load-bearing rules.
+      cta: Read more
+      url: '/docs/writing-prds.html'
+    - title: Hints reference
+      excerpt: All seven verification hint types, with examples.
+      cta: Read more
+      url: '/docs/hints.html'
+    - title: Commands
+      excerpt: Full command and flag reference, exit codes.
+      cta: Read more
+      url: '/docs/commands.html'
+    - title: Configuration
+      excerpt: The .zurdo/config.toml reference.
+      cta: Read more
+      url: '/docs/configuration.html'
+    - title: Providers
+      excerpt: How zurdo drives the claude, codex, and copilot CLIs.
+      cta: Read more
+      url: '/docs/providers.html'
+    - title: Roadmap
+      excerpt: What's coming in the next release and what's in development.
+      cta: Read more
+      url: '/docs/roadmap.html'
 ---
 
-# zurdo
-{: .fs-9 }
-
-A CLI that drives LLM coding agents through a PRD's tasks in a loop — and **independently verifies** every acceptance criterion instead of trusting the agent's self-report.
-{: .fs-6 .fw-300 }
-
-[Get started](docs/installation.md){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[How it works](docs/how-it-works.md){: .btn .fs-5 .mb-4 .mb-md-0 }
-
----
-
-This documentation describes **zurdo v1.2.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
-{: .note }
+<div class="callout callout--info" markdown="1">
+**Version** This documentation describes **zurdo v1.2.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
+</div>
 
 ## Why zurdo
 
@@ -92,19 +136,6 @@ zurdo state list                     # every .zurdo/<slug>/ at this repo root
 ```
 
 A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
-
-## Documentation
-
-- [How it works](docs/how-it-works.md) — the verification loop, state model, and crash recovery
-- [Installation](docs/installation.md) — Homebrew, release tarballs, and prerequisites
-- [Usage](docs/usage.md) — everyday workflows, run output, CI integration, troubleshooting
-- [Effective use](docs/effective-use.md) — the research → PRD → run pipeline, framed with Anthropic's AI Fluency 4Ds
-- [Writing PRDs](docs/writing-prds.md) — the PRD grammar and its load-bearing rules
-- [Hints reference](docs/hints.md) — all seven verification hint types, with examples
-- [Commands](docs/commands.md) — full command and flag reference, exit codes
-- [Configuration](docs/configuration.md) — the `.zurdo/config.toml` reference
-- [Providers](docs/providers.md) — how zurdo drives the claude, codex, and copilot CLIs
-- [Roadmap](docs/roadmap.md) — what's coming in the next release and what's in development
 
 ## Support
 

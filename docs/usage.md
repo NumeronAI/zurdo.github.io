@@ -1,14 +1,24 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Usage
-nav_order: 4
+description: "Everyday workflows, run output, CI integration, troubleshooting."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Installation
+        url: '/docs/installation.html'
+    next:
+        content: Effective use
+        url: '/docs/effective-use.html'
 ---
-
-# Usage
-{: .no_toc }
-
-1. TOC
-{:toc}
 
 ## The everyday workflow
 

@@ -1,16 +1,26 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Commands
-nav_order: 7
+description: "Full command and flag reference, exit codes."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Hints reference
+        url: '/docs/hints.html'
+    next:
+        content: Configuration
+        url: '/docs/configuration.html'
 ---
 
-# Command reference
-{: .no_toc }
-
 The complete CLI surface as of zurdo v1.2.0. Run `zurdo <subcommand> --help` for built-in help; a bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
-
-1. TOC
-{:toc}
 
 ## Subcommands
 
@@ -38,8 +48,9 @@ Three flag-driven modes turn `run` into a PRD-authoring tool that never executes
 | `zurdo run <prd> --analyze --fix`       | Iterative refinement loop: the analyzer proposes a tightened PRD, zurdo re-analyzes, repeat until warnings stop decreasing. Writes `<prd>.proposed.md` and asks before overwriting            |
 | `zurdo run <prd> --heal`                | Re-aim misaimed `[grep:]`/`[no-grep:]` payloads using the prior run's failure history plus the live working tree as evidence (select → propose → verify → apply). Requires an existing `.zurdo/<slug>/prd.json` from a prior run (exit `3` if absent) and `[roles.analyzer]`. On a TTY it offers each verified heal in place (`y/N`); on non-TTY or with `--no-prompt` it writes verified heals to `<prd>.proposed.md`. Never writes `prd.json` |
 
-Flag combination rules: `--fix` and `--static-only` each require `--analyze` and conflict with each other; `--heal` conflicts with all three.
-{: .note }
+<div class="callout callout--info" markdown="1">
+**Note** Flag combination rules: `--fix` and `--static-only` each require `--analyze` and conflict with each other; `--heal` conflicts with all three.
+</div>
 
 ## Flags by subcommand
 

@@ -1,14 +1,24 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Providers
-nav_order: 9
+description: "How zurdo drives the claude, codex, and copilot CLIs."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Configuration
+        url: '/docs/configuration.html'
+    next:
+        content: Roadmap
+        url: '/docs/roadmap.html'
 ---
-
-# Providers
-{: .no_toc }
-
-1. TOC
-{:toc}
 
 Zurdo drives coding agents exclusively through their **CLIs** — it shells out to the binary on your `PATH`, using whatever authentication you've already set up. There are no SDKs, no API calls from zurdo itself, and no credentials to hand over.
 
@@ -18,8 +28,9 @@ Zurdo drives coding agents exclusively through their **CLIs** — it shells out 
 | OpenAI    | `codex`    | [Codex CLI](https://github.com/openai/codex)                          | `codex login` or `OPENAI_API_KEY`      |
 | GitHub    | `copilot`  | [Copilot CLI](https://github.com/github/gh-copilot)                   | `copilot auth login` or `GITHUB_TOKEN` |
 
-For flags, model availability, and CLI behavior beyond what's here, the vendor docs above are authoritative — those CLIs evolve on their own schedules.
-{: .note }
+<div class="callout callout--info" markdown="1">
+**Note** For flags, model availability, and CLI behavior beyond what's here, the vendor docs above are authoritative — those CLIs evolve on their own schedules.
+</div>
 
 ## Selecting a provider
 

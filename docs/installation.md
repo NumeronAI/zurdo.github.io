@@ -1,14 +1,24 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Installation
-nav_order: 3
+description: "Homebrew, release tarballs, and prerequisites."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: How it works
+        url: '/docs/how-it-works.html'
+    next:
+        content: Usage
+        url: '/docs/usage.html'
 ---
-
-# Installation
-{: .no_toc }
-
-1. TOC
-{:toc}
 
 ## Homebrew (macOS and Linux)
 
@@ -71,7 +81,8 @@ Zurdo shells out to an agent CLI for the executor role. Install and authenticate
 zurdo --version
 ```
 
-`zurdo: command not found` right after `brew install` on Linux usually means the Homebrew bin directory is not on your `PATH` — add `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` to your shell rc.
-{: .note }
+<div class="callout callout--info" markdown="1">
+**Note** `zurdo: command not found` right after `brew install` on Linux usually means the Homebrew bin directory is not on your `PATH` — add `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` to your shell rc.
+</div>
 
 Next: [Usage](usage.md)

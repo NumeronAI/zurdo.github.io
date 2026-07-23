@@ -1,16 +1,29 @@
 ---
+# Page settings
 layout: default
+comments: false
+
+# Hero section
 title: Effective use
-nav_order: 5
+description: "The research → PRD → run pipeline, framed with Anthropic's AI Fluency 4Ds."
+
+# Micro navigation
+micro_nav: true
+
+# Page navigation
+page_nav:
+    prev:
+        content: Usage
+        url: '/docs/usage.html'
+    next:
+        content: Writing PRDs
+        url: '/docs/writing-prds.html'
+
+# Mermaid diagrams on this page
+mermaid: true
 ---
 
-# How to use zurdo effectively
-{: .no_toc }
-
 Zurdo automates the loop, not the thinking. The teams that get the most out of it treat a run as the *last* step of a pipeline — research first, scope second, an evidence-first PRD third, cheap checks fourth, and only then tokens. This page walks that pipeline end to end, framed with the 4D model from Anthropic's [AI Fluency course](https://www.anthropic.com/ai-fluency): **Delegation** (deciding what to hand to the AI), **Description** (communicating it precisely), **Discernment** (evaluating what comes back), and **Diligence** (staying accountable for the result).
-
-1. TOC
-{:toc}
 
 ## The pipeline at a glance
 
