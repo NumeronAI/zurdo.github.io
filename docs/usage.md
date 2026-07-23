@@ -16,8 +16,11 @@ page_nav:
         content: Installation
         url: '/docs/installation.html'
     next:
-        content: Effective use
-        url: '/docs/effective-use.html'
+        content: The operating rhythm
+        url: '/docs/workflow.html'
+
+# Mermaid diagrams on this page
+mermaid: true
 ---
 
 ## The everyday workflow
@@ -37,11 +40,39 @@ zurdo report prds/feature.md        # curated run report (JSON; --format md for 
 
 ## What a run looks like
 
+One run, end to end — who does what, and where the human is (and isn't) needed:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor You
+    participant Z as zurdo
+    participant A as Agent CLI
+    participant W as Working tree
+
+    You->>Z: zurdo run prd.md
+    Z->>W: Snapshot baseline · pre-flight every criterion
+    loop Each task, in dependency order
+        alt criteria already pass
+            Z-->>You: task passed (zero tokens spent)
+        else work needed — until pass or Max-Attempts
+            Z->>A: prompt: task + prior failures + matching lessons
+            A->>W: edits files
+            A-->>Z: exits
+            Z->>W: re-runs every hint itself (agent never consulted)
+            opt same failure repeating
+                Z->>Z: stall detected → optional reasoner diagnosis
+            end
+        end
+    end
+    Z-->>You: summary table · report · run-diff.patch
+```
+
 `zurdo run` emits a live narration on stdout: a startup banner, per-task headers, per-criterion pass/fail, then a final summary table.
 
 ```
 ═══════════════════════════════════════════════════════════
-  Zurdo v1.2.0
+  Zurdo v1.6.0
   PRD:      prds/auth.md
   Slug:     auth-a1b2
   Executor: anthropic (effort_map: low=claude-haiku-4-5,
@@ -81,6 +112,19 @@ Glyph legend: `→` action, `✓` pass, `✗` fail, `⊘` skipped/manual, `⚠` 
 A criterion that was already green before the agent ever ran carries the tail `already passed at pre-flight — proves nothing about this run`, and the summary table adds a `passed-at-preflight` tally — see [Evidence integrity](how-it-works.md#evidence-integrity).
 
 The progress stream is on stdout; a parallel JSONL event log lands at `.zurdo/<slug>/progress.log` for tooling. Tunables: `--no-progress` silences the stream, `--quiet-agent` drops the live tee of agent output (spinner stays), `--no-color` strips ANSI.
+
+### Reading the agent as it works
+
+On a TTY, the live tee of the agent's output renders **step summaries** instead of raw JSON — one line per meaningful step:
+
+```
+  • agent: I'll add the limiter middleware first, then wire it into app.rs
+  • tool Bash: cargo test rate_limit:: (exit 0)
+  • edit: src/middleware/rate_limit.rs (+64 −0)
+  • result: turn complete — 2 files changed
+```
+
+Zurdo recognizes the structured stream formats of all three providers (`claude` stream-json, `codex --json`, `copilot` JSON output). The full raw stream is always captured to `.zurdo/<slug>/iterations/*.out`/`.err` regardless — the summaries only change what scrolls past your eyes. Prefer the firehose? `--raw-agent` restores the byte-level tee (mutually exclusive with `--quiet-agent`).
 
 ## Interrupting and resuming
 
@@ -166,10 +210,11 @@ Notes:
 | Agent runs forever, no progress                                    | Agent is hung or slow.                                                           | Lower `Agent-timeout` in the task metadata or `[timeouts] agent_seconds` in config.              |
 | `frozen path modified: <path>` fails every iteration               | The task genuinely requires editing a path frozen by `**Frozen**` or `[verification] protected_paths`. | Unfreeze the path or restructure the task — `zurdo --analyze` warns about hint/frozen-glob overlaps up front. |
 | Grep criterion keeps failing though the content looks right        | The hint's pattern or file path is misaimed (moved file, renamed symbol).        | Run `zurdo run <prd> --heal` to re-aim failed grep payloads against the live tree.               |
+| `task_stalled` in the progress stream; attempts repeat the same failure | The agent is looping on one failure instead of converging.                  | Enable the `[reason]` subsystem so a stall gets a reasoner diagnosis (guide, heal routing, or early halt) — see [Diagnosis & lessons](reason.md). |
 | Criterion passes but proves nothing                                | Hint is too loose (`[shell: true]`, `[file-exists: README.md]`).                 | Tighten the hint. `zurdo --analyze` flags many such no-ops as warnings.                          |
 | `[Y/n]` prompts appear in CI logs                                  | Default mode is interactive when stdin happens to be a TTY.                      | Always pass `--no-prompt` in CI (plus `--resume` or `--reset` to declare intent explicitly).     |
 | `zurdo: command not found` after `brew install`                    | Homebrew bin directory not on PATH (Linux specifically).                         | `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` in your shell rc.                       |
 
 If your symptom isn't here, run with `-v` (`--log-level=debug`) and check `.zurdo/<slug>/progress.log` — every state transition is structured there.
 
-Next: [Effective use](effective-use.md)
+Next: [The operating rhythm](workflow.md)

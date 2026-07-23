@@ -13,8 +13,8 @@ micro_nav: true
 # Page navigation
 page_nav:
     prev:
-        content: Usage
-        url: '/docs/usage.html'
+        content: The operating rhythm
+        url: '/docs/workflow.html'
     next:
         content: Writing PRDs
         url: '/docs/writing-prds.html'
@@ -75,7 +75,7 @@ Scope creep in a PRD isn't just wasted tokens — it widens the blast radius you
 
 ## Step 3 — Author the PRD with the bundled skill (Description)
 
-Description is where most agent-driven work fails: instructions that a human would fill in from context, an LLM fills in from imagination. Zurdo's answer is the PRD grammar — and the fastest way to a good one is the bundled `zurdo-prd-author` skill, installed by `zurdo init`. Invoke it from your agent CLI and it runs an **evidence-first interview**: it drafts the acceptance criteria *first*, derives tasks from them, renders the grammar, and pressure-tests every criterion until its hint actually verifies.
+Description is where most agent-driven work fails: instructions that a human would fill in from context, an LLM fills in from imagination. Zurdo's answer is the PRD grammar — and the fastest way to a good one is the bundled `zurdo-prd-author` skill, installed by `zurdo init`. Invoke it from your agent CLI and it runs an **evidence-first interview**: it drafts the acceptance criteria *first*, derives tasks from them, renders the grammar, and pressure-tests every criterion until its hint actually verifies. In a repo where past runs have built up a [lesson library](reason.md), the pressure-test phase also consults it — a lesson recording "tests here need the daemon running" reshapes a criterion before it ever fails a run.
 
 Evidence-first matters because it forces the three layers of description AI Fluency distinguishes:
 

@@ -29,8 +29,9 @@ Zurdo parses your PRD into a dependency-ordered list of tasks and runs them **se
 
 1. **Pre-flight.** Before invoking any agent, zurdo runs the task's acceptance criteria against the working tree as-is. The per-criterion verdicts are recorded once in `prd.json` (`preflight_results`) — this "iteration 0" snapshot is what later separates *the agent made this true* from *this was already true*. If everything already passes, the task is marked done without spending a single token. A task whose criteria are *all* `[manual]` short-circuits here to `passed-pending-review` and never invokes the agent.
 2. **Agent iteration.** Zurdo renders a prompt from the task's description and shells out to your configured agent CLI (`claude`, `codex`, or `copilot`). The agent works directly against your working tree.
-3. **Independent verification.** When the agent exits, zurdo runs **every** hint on every criterion itself — shell commands, HTTP probes, file checks, greps. The agent's own claims about what it did are never consulted. Frozen paths are checked here too: if the run's diff against the baseline touches a path frozen by `**Frozen**` metadata or `[verification] protected_paths` config, the iteration fails regardless of criteria results.
+3. **Independent verification.** When the agent exits, zurdo runs **every** hint on every criterion itself — shell commands, HTTP probes, file checks, greps, and (opt-in) [structural hints](hints.md#structural-hints-experimental) resolved against the Lumen code index. The agent's own claims about what it did are never consulted. Frozen paths are checked here too: if the run's diff against the baseline touches a path frozen by `**Frozen**` metadata or `[verification] protected_paths` config, the iteration fails regardless of criteria results.
 4. **Retry or settle.** If any automated hint fails (or a frozen path was modified) and the attempt budget (`Max-Attempts`) has room, the loop goes back to step 2 — and the retry prompt carries the prior attempt's failing checks (hint, typed failure reason, captured stdout/stderr) plus the tail of the agent's own narrative, so the agent knows exactly what just failed. If the budget is exhausted, the task is marked `failed`. Tasks depending on a failed task become `blocked-by-dependency`.
+5. **Stall detection and diagnosis.** Every failing iteration is fingerprinted; consecutive attempts failing the *same way* mark the task **stalled** — the agent is repeating itself, not converging. With the opt-in `[reason]` subsystem enabled, a stall triggers a single reasoner LLM call that either guides the next attempt, routes a misaimed hint to `--heal`, or halts the task early to stop wasted spend — and a task that stalls then recovers leaves behind a **lesson** future runs get told about. The full lifecycle is on [Diagnosis & lessons](reason.md).
 
 ```mermaid
 flowchart LR
@@ -43,9 +44,13 @@ flowchart LR
         direction TB
         PREFLIGHT["Pre-flight<br/>(run criteria first)"] -->|all pass| DONE
         PREFLIGHT -->|some fail| AGENT["Invoke agent CLI<br/>(claude · codex · copilot)"]
-        AGENT --> VERIFY["Verifier<br/>(shell · http · file · grep)"]
+        AGENT --> VERIFY["Verifier<br/>(shell · http · file · grep · structural)"]
         VERIFY -->|pass| DONE["Mark task<br/>passed"]
-        VERIFY -->|fail, budget left| AGENT
+        VERIFY -->|fail, budget left| STALLQ{"Same failure<br/>as last attempt?"}
+        STALLQ -->|"no — or stalled with<br/>[reason] off"| AGENT
+        STALLQ -->|"stalled + [reason] on"| DIAG["Reasoner diagnosis:<br/>guide · route to --heal · halt"]
+        DIAG -->|guidance| AGENT
+        DIAG -->|halt_task| FAIL
         VERIFY -->|budget exhausted| FAIL["Mark task<br/>failed"]
     end
 
@@ -78,6 +83,9 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
 ```
 .zurdo/
 ├── config.toml                      # provider config, effort map, defaults
+├── lumen/                           # optional structural code index (repo-scoped)
+├── reason/
+│   └── library/                     # cross-run lesson library (repo-scoped)
 └── <slug>/
     ├── prd.json                     # terminal source of truth, atomic writes
     ├── progress.log                 # append-only JSONL event stream
@@ -88,11 +96,14 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
     │   ├── <task-id>-<attempt>.out
     │   ├── <task-id>-<attempt>.err
     │   └── <task-id>-<attempt>.prompt
+    ├── reason/                      # this run's diagnosis blocks
     └── reports/
         └── <timestamp>.{json,md}
 ```
 
 Every agent invocation leaves a full audit trail: the exact prompt sent (`.prompt`), and the agent's stdout/stderr (`.out`/`.err`), per task and attempt.
+
+Two directories are **repository-scoped** rather than per-PRD: `.zurdo/lumen/` (the optional structural code index behind the [experimental structural hints](hints.md#structural-hints-experimental)) and `.zurdo/reason/library/` (the [cross-run lesson library](reason.md) — lessons learned on one PRD benefit every other PRD in the repo). `zurdo run --reset` archives only the slug's state; both repo-scoped stores survive it.
 
 <div class="callout callout--info" markdown="1">
 **Note** Add `.zurdo/` to your `.gitignore`. Zurdo prints a one-time hint if you forget — but it never modifies your `.gitignore` itself.
@@ -137,9 +148,11 @@ Zurdo ships bundled, opinionated skills compiled into the binary. They teach an 
 
 | Skill                    | Reach for it when …                                                                                     |
 | ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `zurdo-prd-author`       | Authoring a PRD end-to-end, evidence-first: an interview drafts the acceptance criteria first, derives tasks from them, then pressure-tests every criterion until its hint actually verifies. |
-| `zurdo-hint-debugger`    | A criterion failed and you need to know whether the hint is wrong or the code is. Correlates the hint with iteration logs and the tree. |
+| `zurdo-prd-author`       | Authoring a PRD end-to-end, evidence-first: an interview drafts the acceptance criteria first, derives tasks from them, then pressure-tests every criterion until its hint actually verifies. Writes a `<prd-name>.trail.md` reasoning sidecar (never parsed by zurdo) recording why each decision was made. |
+| `zurdo-hint-debugger`    | A criterion failed and you need to know whether the hint is wrong or the code is. Correlates the hint with iteration logs, the tree, and the authoring trail sidecar if present. |
 | `zurdo-state-summary`    | You want a human summary of `prd.json` + `progress.log` with a recommended next action (`--resume`, `--reset`, or fix-then-resume). |
+
+When the repo has a [lesson library](reason.md), `zurdo-prd-author` (while pressure-testing criteria) and `zurdo-hint-debugger` (while analyzing a failure) both consult it read-only via `zurdo reason match` — a lesson recording a repo quirk is evidence about whether a hint will hold up. Both degrade silently when the library is absent.
 
 `zurdo init` installs them into your provider's native discovery path (e.g. `.claude/skills/<name>/` for Anthropic, `.agents/skills/<name>/` for Codex/Copilot); `zurdo skills list` and `zurdo skills install <name>` manage them afterwards. Installs are idempotent via a `.zurdo-managed` sentinel file in each installed skill.
 

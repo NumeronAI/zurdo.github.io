@@ -173,6 +173,8 @@ The rules, all machine-checked:
 
 If your agent provider is set up, the bundled `zurdo-prd-author` skill turns PRD authoring into a guided, evidence-first interview — it drafts the acceptance criteria first, derives tasks from them, then renders the grammar — and pressure-tests every criterion until its hint actually verifies. `zurdo init` installs it; invoke it from your agent CLI like any other skill.
 
+Alongside the PRD it writes a `<prd-name>.trail.md` **reasoning sidecar** — a record of why each decision was made, never parsed by zurdo — which the `zurdo-hint-debugger` skill reads later when a criterion fails. And in a repo whose past runs have built up a [lesson library](reason.md), the pressure-test phase consults it read-only, folding known repo quirks into the criteria before they can cost a run.
+
 ## Validate early, analyze before you spend
 
 ```sh

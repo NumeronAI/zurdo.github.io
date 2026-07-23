@@ -13,14 +13,14 @@ micro_nav: true
 # Page navigation
 page_nav:
     prev:
-        content: Hints reference
-        url: '/docs/hints.html'
+        content: Diagnosis & lessons
+        url: '/docs/reason.html'
     next:
         content: Configuration
         url: '/docs/configuration.html'
 ---
 
-The complete CLI surface as of zurdo v1.2.0. Run `zurdo <subcommand> --help` for built-in help; a bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
+The complete CLI surface as of zurdo v1.6.0. Run `zurdo <subcommand> --help` for built-in help; a bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
 
 ## Subcommands
 
@@ -36,6 +36,13 @@ The complete CLI surface as of zurdo v1.2.0. Run `zurdo <subcommand> --help` for
 | `zurdo skills list`           | List bundled skills compiled into the binary                                                    |
 | `zurdo skills install <name>` | Install a bundled skill directly into the provider discovery path                               |
 | `zurdo check-models`          | Probe the **existing** config's models without writing anything; adds a row per configured analyzer model. Exits `0` when all ok, `4` on any unknown/unsupported (matching the `run` pre-flight); transient `error` rows render but don't gate the exit code |
+| `zurdo reason match <prd>`    | Preview which [library lessons](reason.md) would match each task of a PRD — read-only, never updates lesson stats |
+| `zurdo reason status`         | Lesson-library count (grouped by match key) plus per-slug diagnosis-block counts                |
+| `zurdo reason clear`          | Delete the lesson library. Confirms on a TTY; `--yes` for non-interactive use                   |
+| `zurdo lumen status`          | Report the [structural index](hints.md#structural-hints-experimental)'s state (and the Vela watcher's, when configured) |
+| `zurdo lumen rebuild`         | Rebuild the structural index from scratch                                                       |
+| `zurdo lumen clear`           | Delete `.zurdo/lumen/`. Confirms on a TTY                                                       |
+| `zurdo vela serve` / `start` / `stop` / `status` | Run or manage the optional background watcher that keeps the Lumen index fresh |
 
 ## Authoring modes on `zurdo run`
 
@@ -66,6 +73,7 @@ Three flag-driven modes turn `run` into a PRD-authoring tool that never executes
 | `--reset`             | Archive old state under `.zurdo/<slug>/.archive/<ts>/` and start over. Skips the resume prompt.          |
 | `--max-iterations N`  | Cap total agent invocations across the run (also caps `--analyze --fix` refinement iterations). Overrides `[defaults] max_total_iterations`. `0` = unlimited. |
 | `--skip-model-check`  | Disable the automatic pre-run model probe. For CI against fake CLIs or deliberately unverified models.   |
+| `--raw-agent`         | Restore the raw byte-level tee of agent output instead of the default step summaries on a TTY. Mutually exclusive with `--quiet-agent`. |
 
 ### `zurdo init`
 
@@ -117,6 +125,7 @@ zurdo run prds/feature.md --resume          # continue after Ctrl-C, no prompt
 zurdo run prds/feature.md --heal            # re-aim grep hints that failed last run
 zurdo verify prds/feature.md                # re-check criteria after hand edits
 zurdo report prds/feature.md --format md    # human-readable run report
+zurdo reason match prds/feature.md          # preview lessons that would inform this PRD
 zurdo skills install --all --all-providers  # every bundled skill, every provider
 ```
 

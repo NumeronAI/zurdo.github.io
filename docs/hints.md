@@ -5,7 +5,7 @@ comments: false
 
 # Hero section
 title: Hints reference
-description: "All seven verification hint types, with examples."
+description: "The seven core hint types and the three experimental structural hints, with examples."
 
 # Micro navigation
 micro_nav: true
@@ -16,18 +16,18 @@ page_nav:
         content: Writing PRDs
         url: '/docs/writing-prds.html'
     next:
-        content: Commands
-        url: '/docs/commands.html'
+        content: Diagnosis & lessons
+        url: '/docs/reason.html'
 ---
 
 Hints are the machine-checkable half of an acceptance criterion. After every agent iteration, zurdo executes each hint itself and decides pass/fail — the agent's opinion is never consulted.
 
-## The seven hint types
+## The seven core hint types
 
 | Hint                                 | Behavior                                                                            |
 | ------------------------------------ | ------------------------------------------------------------------------------------ |
 | `[shell: <cmd>]`                     | Run the command; pass iff it exits `0`. Working directory is the repo root.         |
-| `[http: <method> <url> -> <status>]` | Make the request; pass iff the response status matches.                              |
+| `[http: <method> <url> -> <status>]` | Make the request; pass iff the response status matches. An optional `contains "<substring>"` tail additionally asserts the response body contains the substring (literal, case-sensitive; a non-empty `contains` against `HEAD` always fails). |
 | `[file-exists: <path>]`              | Pass iff a file exists at the path (relative to repo root).                          |
 | `[grep: <pattern> in <file>]`        | Pass iff the regex pattern is found in the file.                                     |
 | `[file-absent: <path>]`              | Pass iff **no** file exists at the path (relative to repo root).                     |
@@ -43,6 +43,7 @@ One example of each:
 - [ ] the marker string is present [grep: Health check in docs/runbook.md]
 - [ ] no TODOs remain [no-grep: TODO in src/main.rs]
 - [ ] /health returns 200 [http: GET http://localhost:8080/health -> 200]
+- [ ] /health reports ok [http: GET http://localhost:8080/health -> 200 contains "\"status\":\"ok\""]
 - [ ] design review signed off [manual]
 ```
 
@@ -96,6 +97,38 @@ Hints must actually test something meaningful. Two pitfalls prove nothing:
 
 `zurdo --analyze` detects and warns about both classes. It also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo --analyze --static-only` — the deterministic lint surfaces vacuous-shell and grep-tautology warnings before you commit compute to a real run.
 
+## Structural hints (experimental)
+
+Three additional hint types verify facts about **named code symbols** — existence, references, call relationships — by static analysis instead of shell commands. They resolve against **Lumen**, zurdo's persistent structural index at `.zurdo/lumen/`, and are gated behind two config switches: `[lumen] enabled = true` **and** `[experimental] structural_hints = true` (setting the gate without Lumen is a config-load error).
+
+```
+[symbol: <kind> <qualified-name> in <file>]
+[references: <kind> <qname> in <file> within <kind> <qname> in <file>]
+[callers: <kind> <qname> in <file> within <kind> <qname> in <file>]
+```
+
+| Hint            | Proves                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `[symbol:]`     | A **definition** of that kind and qualified name exists in exactly that file — a use site or import doesn't count. |
+| `[references:]` | The target symbol is referenced **inside** the enclosing symbol named by `within`, with the occurrence deterministically bound through lexical scope and static imports — a same-named symbol from another module doesn't count. |
+| `[callers:]`    | Stronger than `[references:]`: the bound target occupies the **callee position of a call expression** inside the enclosing symbol. Passing the function as a value doesn't count. |
+
+```markdown
+- [ ] limiter type is defined [symbol: struct RateLimiter in src/middleware/rate_limit.rs]
+- [ ] app wires the limiter [callers: method RateLimiter::layer in src/middleware/rate_limit.rs within function build_router in src/app.rs]
+- [ ] config reaches the limiter [references: struct AppConfig in src/config.rs within struct RateLimiter in src/middleware/rate_limit.rs]
+```
+
+The load-bearing rules:
+
+- **Kinds are a closed set of eleven:** `function`, `method`, `type`, `class`, `struct`, `enum`, `interface`, `trait`, `module`, `constant`, `variable` — each language maps its constructs onto them (`type` means a type *alias* only; Go's `type Foo struct` is a `struct`). Naming the wrong kind fails with the candidate's actual kind in the diagnostic.
+- **Qualified names use `::`** as the owner separator in every language (`Config::load`); top-level names are unqualified. Top-level occurrences bind to the file's `module` symbol (`within module main in src/main.rs`).
+- **Paths are exact and repo-relative** — no globs, no directory scopes, no inferring a file from a module name. `within` is mandatory on `[references:]`/`[callers:]` and rejected on `[symbol:]`.
+- **Unique resolution or failure.** Zero candidates fails with "not found"; multiple candidates fail listing them. Dynamic dispatch, trait objects, and macro-generated names deliberately fail as ambiguous rather than guessing — a structural hint never false-passes.
+- **Failures are typed** — `symbol_unresolved` / `binding_unresolved` — and passing verdicts record the resolved identity and source span in `prd.json` and the report's `structural_verdicts`.
+
+Supported languages: Rust, Python, Go, TypeScript, and JavaScript (including TSX/JSX). Structural hints verify the **current working tree** — a task can satisfy its own structural criteria in the same run. Their target files count as evidence paths (frozen-overlap lints, evidence-modified warnings apply). A PRD with no structural hints never touches the index; one that has them triggers an index repair at pre-flight, and a non-ready index is a pre-flight error (`zurdo lumen rebuild` is the remedy) — never a silent criterion failure. The optional [Vela watcher](configuration.md#the-vela-watcher) keeps the index warm between runs.
+
 ## Writing hints that hold up
 
 - **Probe behavior, not incidentals.** `[file-exists: README.md]` passes on almost any repo; `[shell: cargo test --workspace]` proves the work.
@@ -103,4 +136,4 @@ Hints must actually test something meaningful. Two pitfalls prove nothing:
 - **Let the failure diagnose itself.** Prefer `[shell: cargo test auth::token_expiry]` over one giant `[shell: ./check-everything.sh]`; per-criterion pass/fail in the run output then tells you *what* broke.
 - **Use `[manual]` honestly.** It carries zero machine signal — it exists to put a human-review obligation on the record, not to make a task pass.
 
-Next: [Commands](commands.md)
+Next: [Diagnosis & lessons](reason.md)

@@ -46,7 +46,7 @@ brew install ElOrlis/zurdo/zurdo
 # Replace VERSION and TARGET to taste. Available targets:
 #   aarch64-apple-darwin
 #   x86_64-unknown-linux-gnu · aarch64-unknown-linux-gnu
-VERSION=1.2.0
+VERSION=1.6.0
 TARGET=aarch64-apple-darwin
 curl -fsSL "https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}/zurdo-v${VERSION}-${TARGET}.tar.gz" \
   | tar -xz -C /usr/local/bin zurdo
