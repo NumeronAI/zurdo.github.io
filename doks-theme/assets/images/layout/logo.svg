@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 256" role="img" aria-labelledby="title desc">
+  <title id="title">Zurdo CLI</title>
+  <desc id="desc">Zurdo command-line interface logo with an angular Z command-path mark.</desc>
+  <g>
+    <path fill="#101319" d="M32 32h168l24 24v40L88 208h136l-32 32H48l-24-24v-40L160 64H64L32 32Z"/>
+    <path fill="#7C5CFF" d="M24 176l32-26v58h48l-32 32H48l-24-24v-40Z"/>
+  </g>
+  <text x="286" y="166" fill="#101319" font-family="'DejaVu Sans Mono', 'SFMono-Regular', Consolas, monospace" font-size="122" font-weight="700" letter-spacing="7">ZURDO</text>
+  <text x="742" y="166" fill="#7C5CFF" font-family="'DejaVu Sans Mono', 'SFMono-Regular', Consolas, monospace" font-size="43" font-weight="700" letter-spacing="2">CLI</text>
+</svg>

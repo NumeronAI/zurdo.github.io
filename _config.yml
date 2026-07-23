@@ -9,8 +9,8 @@ doks:
     color_theme: blue # Available themes: blue (default), green, purple, red and yellow
     header:
         logo:
-            text: zurdo
-            image:
+            text: # empty — use the image logo instead
+            image: true
         nav:
             - item_name: How it works
               item_url: '/docs/how-it-works.html'
@@ -25,8 +25,8 @@ doks:
     footer:
         content:
             logo:
-                text: zurdo
-                image:
+                text: # empty — use the image logo instead
+                image: true
             copyright: Copyright &copy; 2026 Numeron Technologies Inc. <br>Documentation for the <strong>zurdo</strong> CLI.
         social_list:
             - network_name: github

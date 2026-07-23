@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Zurdo favicon</title>
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="#101319"/>
+  <g transform="translate(32 32) scale(.75)">
+    <path fill="#F5F7FA" d="M32 32h168l24 24v40L88 208h136l-32 32H48l-24-24v-40L160 64H64L32 32Z"/>
+    <path fill="#8B6CFF" d="M24 176l32-26v58h48l-32 32H48l-24-24v-40Z"/>
+  </g>
+</svg>
