@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Documentation site for the **zurdo** CLI, hosted on GitHub Pages at the custom domain `https://zurdo.numeron.ai` (DNS: CNAME at Namecheap pointing to `numeronai.github.io`). The repo is a *project* site under the NumeronAI org; without the custom domain it would serve at `https://numeronai.github.io/zurdo.github.io/`.
+Documentation site for the **zurdo** CLI, hosted on GitHub Pages at the custom domain `https://zurdo.sh` (DNS: apex A/AAAA records at the registrar pointing to GitHub Pages' IPs, since `zurdo.sh` is an apex domain). The repo is a *project* site under the NumeronAI org; without the custom domain it would serve at `https://numeronai.github.io/zurdo.github.io/`.
 
 ## Architecture
 
