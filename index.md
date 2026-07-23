@@ -6,6 +6,7 @@ permalink: /
 
 # Hero section
 title: zurdo
+hero_logo: /doks-theme/assets/images/layout/logo.svg
 description: A CLI that drives LLM coding agents through a PRD's tasks in a loop — and independently verifies every acceptance criterion instead of trusting the agent's self-report.
 buttons:
     - content: Get started
