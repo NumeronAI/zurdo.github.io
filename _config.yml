@@ -2,6 +2,18 @@ title: zurdo
 description: Documentation for the zurdo CLI
 url: "https://zurdo.sh"
 baseurl: ""
+logo: /doks-theme/assets/images/layout/logo.png
+
+# Social share card (og:image / twitter:image) for every page, via jekyll-seo-tag.
+# A page can override it with its own `image:` front matter.
+defaults:
+  - scope:
+      path: ""
+    values:
+      image:
+        path: /doks-theme/assets/images/social-card.png
+        width: 1200
+        height: 630
 
 # --- Doks theme settings (theme lives in ./doks-theme, vendored into this repo) ---
 doks:
