@@ -43,7 +43,7 @@ enabled = true            # build and maintain the index
 structural_hints = true   # allow [symbol:]/[references:]/[callers:] in PRDs
 ```
 
-The gates compose strictly: `structural_hints = true` while `lumen.enabled = false` is a **config-load error**, and a structural hint in a PRD while the gate is off is a **validation error** naming the disabled gate — `zurdo validate`, `--analyze`, `run`, and `--resume` all enforce it identically. The full `[lumen]` key table is on the [Configuration](configuration.md#lumen-and-structural-hints) page.
+The gates compose strictly: `structural_hints = true` while `lumen.enabled = false` is a **config-load error**, and a structural hint in a PRD while the gate is off is a **validation error** naming the disabled gate — `zurdo validate`, `zurdo analyze`, `run`, and `--resume` all enforce it identically. The full `[lumen]` key table is on the [Configuration](configuration.md#lumen-and-structural-hints) page.
 
 ## What each hint proves
 

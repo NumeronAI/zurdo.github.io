@@ -46,7 +46,7 @@ brew install ElOrlis/zurdo/zurdo
 # Replace VERSION and TARGET to taste. Available targets:
 #   aarch64-apple-darwin
 #   x86_64-unknown-linux-gnu · aarch64-unknown-linux-gnu
-VERSION=1.6.0
+VERSION=1.7.0
 TARGET=aarch64-apple-darwin
 curl -fsSL "https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}/zurdo-v${VERSION}-${TARGET}.tar.gz" \
   | tar -xz -C /usr/local/bin zurdo
@@ -57,6 +57,16 @@ Each release also ships a `checksums.txt` and per-file `.sha256` siblings — ve
 ```sh
 curl -fsSLO "https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}/checksums.txt"
 sha256sum --check --ignore-missing checksums.txt
+```
+
+## Shell completions and man pages
+
+Since v1.7.0, Homebrew installs bash, zsh, and fish completions plus man pages (`man zurdo`, `man zurdo-run`, …) automatically. Release tarballs bundle the same files under `completions/` and `man/` — copy them wherever your shell and `manpath` look.
+
+No packaged files needed, though: the binary generates its own completions for `bash`, `zsh`, `fish`, `elvish`, and `powershell`, always matching the installed version:
+
+```sh
+eval "$(zurdo completions zsh)"     # e.g. in your ~/.zshrc
 ```
 
 ## Source availability

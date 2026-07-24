@@ -7,7 +7,7 @@ permalink: /
 # Hero section
 title: zurdo
 hero_logo: /doks-theme/assets/images/layout/logo.svg
-description: A CLI that drives LLM coding agents through a PRD's tasks in a loop — and independently verifies every acceptance criterion instead of trusting the agent's self-report.
+description: A CLI that drives LLM coding agents through a PRD's tasks on machine time — and independently verifies every acceptance criterion instead of trusting the agent's self-report.
 buttons:
     - content: Get started
       url: '/docs/installation.html'
@@ -74,21 +74,22 @@ grid_navigation:
 ---
 
 <div class="callout callout--info" markdown="1">
-**Version** This documentation describes **zurdo v1.6.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
+**Version** This documentation describes **zurdo v1.7.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
 </div>
 
 ## Why zurdo
 
-Zurdo descends from the **Ralph technique** — run a coding agent in a loop against a persistent plan until the work is done ([ClaytonFarr/ralph-playbook](https://github.com/ClaytonFarr/ralph-playbook)). Ralph proved the loop works, and was honest about where it breaks. Zurdo closes each documented gap:
+Zurdo changes what a day of engineering attention produces. You scope the work, spend 30–60 minutes authoring a [PRD](docs/writing-prds.md), and hand it to `zurdo run` — implementation happens on machine time, often on a remote server, while you scope the next piece or get on with your day. You come back to a report and evidence, not a chat transcript to babysit.
 
-| Ralph's gap                        | Zurdo's answer                                                                                                          |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Completion is self-graded** — the agent decides when it's done | Zurdo executes every criterion's [hint](docs/hints.md) itself after each iteration; the agent's self-report is never consulted |
-| **Weak criteria go undetected** — "works correctly" verifies nothing | `zurdo validate` and `--analyze` lint the PRD *before* tokens are spent; `--heal` re-aims misfired hints after            |
-| **The loop is unbounded** — it can circle forever | Per-task `Max-Attempts`, run-wide `--max-iterations`, [stall detection](docs/reason.md), and exit codes that say *why* it stopped |
-| **State is fragile** — a plan file the agent itself rewrites | Everything lives under `.zurdo/<slug>/` — atomic, owned by zurdo, resumable after Ctrl-C or a crash                        |
+Walking away is safe because the loop never grades itself. After every iteration zurdo — never the agent — executes every acceptance criterion's [hint](docs/hints.md) and decides pass/fail; `zurdo validate` and `zurdo analyze` lint the PRD *before* tokens are spent; `Max-Attempts` budgets and [stall detection](docs/reason.md) bound the cost of failure; crash-safe state under `.zurdo/<slug>/` means an interrupted run resumes instead of restarting. When a string match isn't proof enough, opt-in [structural hints](docs/lumen.md) verify *code facts* against the Lumen code index, and the [reason subsystem](docs/reason.md) turns every diagnosed stall into a **lesson** future runs are told about up front. (The design descends from the [Ralph technique](https://github.com/ClaytonFarr/ralph-playbook) — run an agent in a loop against a persistent plan — with each of Ralph's documented gaps closed by the runtime.)
 
-And a loop that stops failing the *same way* twice: with the opt-in [reason subsystem](docs/reason.md), a stalled task gets a one-call LLM diagnosis — guide the retry, route a bad hint to `--heal`, or halt the spend — and every recovery is distilled into a **lesson** future runs in the repo are told about up front. When a string match isn't proof enough, opt-in [structural hints](docs/lumen.md) verify *code facts* — this definition exists, that function is actually called — against the Lumen code index instead of grepping for text.
+That safety is what buys the productivity. An interactive chat workflow consumes engineer attention *per iteration*, so throughput stays chained to implementation time. Zurdo consumes it *per design and per verdict*:
+
+```text
+throughput ≈ available attention ÷ (authoring timebox + review timebox)
+```
+
+Implementation duration drops out of the equation entirely — and nothing forces the loop to be serial: author the next PRD while the last one runs, review both when you're free. [The operating rhythm](docs/workflow.md) walks the full loop phase by phase and maps it onto agile, ceremony by ceremony — a sprint compressed to hours, with every rule agile enforces socially enforced mechanically instead.
 
 Two deliberate non-features keep it predictable: **provider-agnostic** (shells out to the [`claude`](https://docs.claude.com/en/docs/claude-code/overview), [`codex`](https://github.com/openai/codex), and [`copilot`](https://github.com/github/gh-copilot) CLIs — no SDKs, no API keys handed to zurdo) and **no git automation** (branching, committing, and PRs stay yours).
 
@@ -121,7 +122,7 @@ EOF
 zurdo validate prds/hello.md
 
 # 4. (optional) Static + LLM analysis of the PRD itself:
-zurdo --analyze prds/hello.md
+zurdo analyze prds/hello.md
 
 # 5. Drive the loop:
 zurdo run prds/hello.md

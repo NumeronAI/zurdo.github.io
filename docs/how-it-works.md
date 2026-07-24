@@ -31,7 +31,7 @@ Zurdo parses your PRD into a dependency-ordered list of tasks and runs them **se
 2. **Agent iteration.** Zurdo renders a prompt from the task's description and shells out to your configured agent CLI (`claude`, `codex`, or `copilot`). The agent works directly against your working tree.
 3. **Independent verification.** When the agent exits, zurdo runs **every** hint on every criterion itself — shell commands, HTTP probes, file checks, greps, and (opt-in) [structural hints](hints.md#structural-hints-experimental) resolved against the Lumen code index. The agent's own claims about what it did are never consulted. Frozen paths are checked here too: if the run's diff against the baseline touches a path frozen by `**Frozen**` metadata or `[verification] protected_paths` config, the iteration fails regardless of criteria results.
 4. **Retry or settle.** If any automated hint fails (or a frozen path was modified) and the attempt budget (`Max-Attempts`) has room, the loop goes back to step 2 — and the retry prompt carries the prior attempt's failing checks (hint, typed failure reason, captured stdout/stderr) plus the tail of the agent's own narrative, so the agent knows exactly what just failed. If the budget is exhausted, the task is marked `failed`. Tasks depending on a failed task become `blocked-by-dependency`.
-5. **Stall detection and diagnosis.** Every failing iteration is fingerprinted; consecutive attempts failing the *same way* mark the task **stalled** — the agent is repeating itself, not converging. With the opt-in `[reason]` subsystem enabled, a stall triggers a single reasoner LLM call that either guides the next attempt, routes a misaimed hint to `--heal`, or halts the task early to stop wasted spend — and a task that stalls then recovers leaves behind a **lesson** future runs get told about. The full lifecycle is on [Diagnosis & lessons](reason.md).
+5. **Stall detection and diagnosis.** Every failing iteration is fingerprinted; consecutive attempts failing the *same way* mark the task **stalled** — the agent is repeating itself, not converging. With the opt-in `[reason]` subsystem enabled, a stall triggers a single reasoner LLM call that either guides the next attempt, routes a misaimed hint to `zurdo heal`, or halts the task early to stop wasted spend — and a task that stalls then recovers leaves behind a **lesson** future runs get told about. The full lifecycle is on [Diagnosis & lessons](reason.md).
 
 ```mermaid
 flowchart LR
@@ -48,7 +48,7 @@ flowchart LR
         VERIFY -->|pass| DONE["Mark task<br/>passed"]
         VERIFY -->|fail, budget left| STALLQ{"Same failure<br/>as last attempt?"}
         STALLQ -->|"no — or stalled with<br/>[reason] off"| AGENT
-        STALLQ -->|"stalled + [reason] on"| DIAG["Reasoner diagnosis:<br/>guide · route to --heal · halt"]
+        STALLQ -->|"stalled + [reason] on"| DIAG["Reasoner diagnosis:<br/>guide · route to heal · halt"]
         DIAG -->|guidance| AGENT
         DIAG -->|halt_task| FAIL
         VERIFY -->|budget exhausted| FAIL["Mark task<br/>failed"]
@@ -72,7 +72,7 @@ flowchart LR
 | ------------------------ | -------------------------------------------------------------------------- |
 | `pending`                | Not yet attempted.                                                         |
 | `passed`                 | All automated hints passed.                                                |
-| `passed-pending-review`  | Automated hints passed (or none exist); one or more `[manual]` criteria await human review. |
+| `passed-pending-review`  | Automated hints passed (or none exist); one or more `[manual]` criteria await human sign-off in [`zurdo review`](usage.md#reviewing-a-run-with-zurdo-review) — signing the last one flips the task to `passed`. |
 | `failed`                 | The `Max-Attempts` budget was exhausted with at least one hint still failing. |
 | `blocked-by-dependency`  | A task it `Depends-on` finished `failed`.                                  |
 
@@ -92,6 +92,7 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
     ├── lock                         # pid + ISO-8601 start time
     ├── baseline                     # working-tree snapshot at run start (JSON)
     ├── run-diff.patch               # unified diff of agent edits across the run
+    ├── review-log.jsonl             # [manual] sign-off chain written by zurdo review
     ├── iterations/
     │   ├── <task-id>-<attempt>.out
     │   ├── <task-id>-<attempt>.err

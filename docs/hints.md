@@ -55,7 +55,7 @@ Multiple hints on one criterion are **AND'd** — all must pass:
 - [ ] the build succeeds and emits the binary [shell: cargo build] [file-exists: target/debug/zurdo]
 ```
 
-Mixing `[manual]` with automated hints means the automated portion still gates; the manual portion surfaces a review obligation in reports. A task whose criteria are **all** `[manual]` short-circuits at pre-flight to `passed-pending-review` and never invokes the agent.
+Mixing `[manual]` with automated hints means the automated portion still gates; the manual portion surfaces a review obligation in reports, settled by an explicit sign-off in the [`zurdo review` TUI](usage.md#reviewing-a-run-with-zurdo-review). A task whose criteria are **all** `[manual]` short-circuits at pre-flight to `passed-pending-review` and never invokes the agent.
 
 ## Timeouts
 
@@ -63,7 +63,7 @@ Mixing `[manual]` with automated hints means the automated portion still gates; 
 
 ## Regex semantics for `[grep:]` / `[no-grep:]`
 
-Patterns are Rust `regex` syntax, matched against the file's contents in **multi-line mode**: `^` and `$` anchor at line boundaries, the way command-line `grep` behaves. `[grep: ^## Heading in doc.md]` passes if any line starts with the heading. Explicit `(?m)` prefixes remain valid and are redundant. The same semantics apply everywhere a pattern is evaluated — the run-time verifier, the `validate`/`--analyze` grep lints, and `--heal` verification — so authoring-time verdicts match run-time verdicts.
+Patterns are Rust `regex` syntax, matched against the file's contents in **multi-line mode**: `^` and `$` anchor at line boundaries, the way command-line `grep` behaves. `[grep: ^## Heading in doc.md]` passes if any line starts with the heading. Explicit `(?m)` prefixes remain valid and are redundant. The same semantics apply everywhere a pattern is evaluated — the run-time verifier, the `validate`/`analyze` grep lints, and `heal` verification — so authoring-time verdicts match run-time verdicts.
 
 <div class="callout callout--info" markdown="1">
 **Note** **Upgrading from v1.1.x?** Patterns used to anchor to the start/end of the entire file. An anchored `[no-grep:]` hint that passed under the old semantics may now fail — that flip is the check finally seeing the line it was aimed at. Patterns without anchors are unaffected.
@@ -95,7 +95,7 @@ Hints must actually test something meaningful. Two pitfalls prove nothing:
 - **Vacuous shell hints** — `[shell: true]` or `[shell: echo "works"]` always pass; no work is verified.
 - **Grep tautologies** — `[grep: .* in src/main.rs]` matches everything and proves nothing; `[no-grep: ^$ in src/main.rs]` fails tautologically.
 
-`zurdo --analyze` detects and warns about both classes. It also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo --analyze --static-only` — the deterministic lint surfaces vacuous-shell and grep-tautology warnings before you commit compute to a real run.
+`zurdo analyze` detects and warns about both classes. It also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo analyze <prd> --static-only` — the deterministic lint surfaces vacuous-shell and grep-tautology warnings before you commit compute to a real run.
 
 ## Structural hints (experimental)
 
@@ -134,6 +134,6 @@ Supported languages: Rust, Python, Go, TypeScript, and JavaScript (including TSX
 - **Probe behavior, not incidentals.** `[file-exists: README.md]` passes on almost any repo; `[shell: cargo test --workspace]` proves the work.
 - **Make each criterion independently checkable.** If a hint needs a server running, say so in the task's Description so the agent starts it — or pick a hint that doesn't.
 - **Let the failure diagnose itself.** Prefer `[shell: cargo test auth::token_expiry]` over one giant `[shell: ./check-everything.sh]`; per-criterion pass/fail in the run output then tells you *what* broke.
-- **Use `[manual]` honestly.** It carries zero machine signal — it exists to put a human-review obligation on the record, not to make a task pass.
+- **Use `[manual]` honestly.** It carries zero machine signal — it exists to put a human-review obligation on the record, not to make a task pass. The obligation is settled by a logged, irrevocable sign-off in `zurdo review`.
 
 Next: [Structural verification](lumen.md)

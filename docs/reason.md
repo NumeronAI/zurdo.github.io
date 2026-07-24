@@ -45,11 +45,11 @@ flowchart TD
     OUT -->|"no"| EXHAUST["Budget exhausted →<br/>failed"]
     OUT -->|"yes — a recovery"| EXTRACT["Lesson extracted<br/>(one reasoner call)"]
     EXTRACT --> LIB[("Lesson library<br/>.zurdo/reason/library/<br/>repo-scoped, cross-PRD")]
-    LIB -->|"prospective match<br/>(before anything fails)"| FUT1["Future runs: first prompts,<br/>--analyze, --heal,<br/>authoring skills"]
+    LIB -->|"prospective match<br/>(before anything fails)"| FUT1["Future runs: first prompts,<br/>zurdo analyze, zurdo heal,<br/>authoring skills"]
     LIB -->|"reactive match<br/>(after a failure)"| FUT2["Future runs:<br/>retry prompts"]
 ```
 
-Everything the reasoner produces is **advisory or subtractive** — it can guide the agent, stop spending, or route a criterion to `--heal`, but no verdict can ever mark a criterion passed, relax a hint, or edit the PRD. Verification stays the exclusive grader.
+Everything the reasoner produces is **advisory or subtractive** — it can guide the agent, stop spending, or route a criterion to `zurdo heal`, but no verdict can ever mark a criterion passed, relax a hint, or edit the PRD. Verification stays the exclusive grader.
 
 ## Stall detection (always on)
 
@@ -73,7 +73,7 @@ Every accepted diagnosis block carries exactly one verdict from a closed set:
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `retry_with_guidance` | The loop continues on its unchanged budget; the next prompt opens a `# Diagnosis` section carrying the reasoner's guidance (capped by `guidance_max_bytes`). Explicitly advisory — the agent may apply or ignore it. |
 | `halt_task`           | Zurdo **stops attempting the task immediately**, even with attempts left — the verdict can spend the budget down, never up. The task records the same `failed` status as budget exhaustion, dependents go `blocked-by-dependency`, and the run continues on other tasks. Never silent: the close-out line reads `halted by reasoner diagnosis (attempt N): <hypothesis>` and the report gains a `## Halt Attributions` section. |
-| `suggest_heal`        | The reasoner believes the *hint* is misaimed, not the code. Inside the loop this behaves like `retry_with_guidance`; at run end the routing surfaces as a `--heal <task> criterion <n>` summary line and a `## Heal Routings` report section. Zurdo **never runs `--heal` itself** — that stays your call. |
+| `suggest_heal`        | The reasoner believes the *hint* is misaimed, not the code. Inside the loop this behaves like `retry_with_guidance`; at run end the routing surfaces as a `--heal <task> criterion <n>` summary line and a `## Heal Routings` report section. Zurdo **never runs `heal` itself** — that stays your call. |
 
 Deliberately absent from the enum: anything that marks a criterion passed, skips it, or weakens a hint. There is no verdict that makes work look done.
 
@@ -95,7 +95,7 @@ Each lesson stores a **match surface** built by zurdo (never authored by the mod
 
 Matching runs in two modes:
 
-- **Prospective** — against a task's *declared* surface, before anything fails. Powers first-iteration injection, `--analyze`, `--heal`, and `zurdo reason match`.
+- **Prospective** — against a task's *declared* surface, before anything fails. Powers first-iteration injection, `zurdo analyze`, `zurdo heal`, and `zurdo reason match`.
 - **Reactive** — against an actual failure's components. Powers retry-prompt injection.
 
 ### Where lessons appear
@@ -103,8 +103,8 @@ Matching runs in two modes:
 | Surface                                  | Section rendered                     | Counts as a "use"? |
 | ---------------------------------------- | ------------------------------------- | ------------------- |
 | Executor prompts during a run            | `# Lessons From Previous Runs` (top `max_lessons_injected`, default `2`) | **Yes** — increments `uses`, stamps `last_matched_at` |
-| `zurdo run --analyze`                    | Per-task `== Lessons ==` (every match, both full and `--static-only` passes) | No |
-| `zurdo run --heal` propose prompt        | `=== LESSONS FROM PREVIOUS RUNS ===`  | No |
+| `zurdo analyze`                          | Per-task `== Lessons ==` (every match, both full and `--static-only` passes) | No |
+| `zurdo heal` propose prompt              | `=== LESSONS FROM PREVIOUS RUNS ===`  | No |
 | `zurdo reason match <prd>` (preview CLI) | Per-task match listing                | No |
 | `zurdo-prd-author` (pressure-test phase) and `zurdo-hint-debugger` (failure analysis) | `Lessons from previous runs` | No |
 

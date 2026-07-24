@@ -31,12 +31,13 @@ zurdo init                    # writes .zurdo/config.toml, installs bundled skil
 
 # Per PRD:
 zurdo validate prds/feature.md      # grammar + dep-graph checks; free and instant
-zurdo --analyze prds/feature.md     # optional: static lints + LLM review of the PRD itself
+zurdo analyze prds/feature.md       # optional: static lints + LLM review of the PRD itself
 zurdo run prds/feature.md           # drive the loop
+zurdo review prds/feature.md        # walk the evidence, sign off [manual] criteria
 zurdo report prds/feature.md        # curated run report (JSON; --format md for markdown)
 ```
 
-`zurdo validate` is deterministic — no LLM, no execution — so run it as often as you like. `zurdo --analyze` goes further: it lints hints for no-ops (vacuous shells, grep tautologies) and has an LLM critique vague criteria, all **before** you spend tokens on a real run. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
+`zurdo validate` is deterministic — no LLM, no execution — so run it as often as you like. `zurdo analyze` goes further: it lints hints for no-ops (vacuous shells, grep tautologies) and has an LLM critique vague criteria, all **before** you spend tokens on a real run. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`, and `zurdo help <topic>` puts condensed guide pages (`workflow`, `hints`, `exit-codes`, …) in the terminal, offline.
 
 ## What a run looks like
 
@@ -72,7 +73,7 @@ sequenceDiagram
 
 ```
 ═══════════════════════════════════════════════════════════
-  Zurdo v1.6.0
+  Zurdo v1.7.0
   PRD:      prds/auth.md
   Slug:     auth-a1b2
   Executor: anthropic (effort_map: low=claude-haiku-4-5,
@@ -108,6 +109,8 @@ sequenceDiagram
 ```
 
 Glyph legend: `→` action, `✓` pass, `✗` fail, `⊘` skipped/manual, `⚠` warning.
+
+A task that ends `passed-pending-review` is waiting on your `[manual]` sign-off — settle it in the [review TUI](#reviewing-a-run-with-zurdo-review).
 
 A criterion that was already green before the agent ever ran carries the tail `already passed at pre-flight — proves nothing about this run`, and the summary table adds a `passed-at-preflight` tally — see [Evidence integrity](how-it-works.md#evidence-integrity).
 
@@ -145,23 +148,41 @@ If you **edited the PRD** since the last run, zurdo refuses with exit `4` (PRD-h
 zurdo verify prds/feature.md
 ```
 
-## Refining a PRD with `--analyze --fix`
+## Reviewing a run with `zurdo review`
 
-`zurdo run <prd> --analyze` runs the full pre-flight analysis and never proceeds to execution (`--static-only` skips the LLM and keeps just the deterministic lints). Adding `--fix` turns it into an iterative refinement loop: the LLM proposes a tightened PRD, zurdo re-analyzes, and the loop repeats until warnings stop decreasing. The result is written to `<prd>.proposed.md`, and zurdo asks before overwriting your original.
-
-```sh
-zurdo run prds/feature.md --analyze --fix
-```
-
-## Healing misaimed grep hints with `--heal`
-
-A `[grep:]` hint can fail because the code is wrong — or because the *hint* is wrong (a moved file, a renamed symbol, a pattern aimed at the wrong line). After a run with such failures, `--heal` re-aims failed `[grep:]`/`[no-grep:]` payloads using the run's failure history plus the live working tree as evidence:
+A run that ends `passed-pending-review` is waiting on you: one or more `[manual]` criteria need a human verdict. `zurdo review <prd>` opens a terminal UI over the run's recorded evidence so that verdict happens next to the facts, not from memory:
 
 ```sh
-zurdo run prds/feature.md --heal
+zurdo review prds/feature.md
 ```
 
-It runs select → propose → verify → apply: the analyzer proposes a corrected payload for each failed grep hint, zurdo verifies the proposal against the tree, and only verified heals are offered. On a TTY each heal is a `y/N` edit to the PRD in place; on non-TTY (or with `--no-prompt`) verified heals go to `<prd>.proposed.md` instead. `--heal` requires an existing `.zurdo/<slug>/prd.json` from a prior run and `[roles.analyzer]` in config; it never executes tasks and never writes `prd.json`. If you're unsure whether the hint or the code is at fault, the bundled `zurdo-hint-debugger` skill correlates the hint with the iteration logs first.
+Three surfaces, all read-only: the **task list** (statuses, with `passed-pending-review` tasks marked `<< awaiting manual sign-off`), **evidence detail** per criterion (the hint's source text, the latest iteration's verdict with exit code, typed failure reason, and a stderr excerpt — plus a warning when the evidence changed since the run-start baseline), and the **baseline diff** (the working tree against `.zurdo/<slug>/baseline`, recomputed live). Navigate with `j`/`k`/arrows, `Enter` to descend, `d` for the diff, `t` for the task list, `Esc` to go up, `q` to quit.
+
+The one write action: `s` signs off the selected `[manual]` criterion — an optional one-line reviewer note, then an explicit confirmation. Sign-offs land in a tamper-evident log at `.zurdo/<slug>/review-log.jsonl`, and signing a task's last unsigned `[manual]` criterion flips it to `passed`. Sign-offs are irrevocable. Full details on [Commands](commands.md#zurdo-review--walk-the-evidence-sign-off-manual-criteria).
+
+`review` needs a real terminal (non-TTY or `--no-prompt` exits `2` with a pointer at `zurdo report`) and an existing run state (exit `3` without one).
+
+## Refining a PRD with `zurdo analyze --fix`
+
+`zurdo analyze <prd>` runs the full pre-flight analysis and never proceeds to execution (`--static-only` skips the LLM and keeps just the deterministic lints). Adding `--fix` turns it into an iterative refinement loop: the LLM proposes a tightened PRD, zurdo re-analyzes, and the loop repeats until warnings stop decreasing. The result is written to `<prd>.proposed.md`, and zurdo asks before overwriting your original.
+
+```sh
+zurdo analyze prds/feature.md --fix
+```
+
+## Healing misaimed grep hints with `zurdo heal`
+
+A `[grep:]` hint can fail because the code is wrong — or because the *hint* is wrong (a moved file, a renamed symbol, a pattern aimed at the wrong line). After a run with such failures, `zurdo heal` re-aims failed `[grep:]`/`[no-grep:]` payloads using the run's failure history plus the live working tree as evidence:
+
+```sh
+zurdo heal prds/feature.md
+```
+
+It runs select → propose → verify → apply: the analyzer proposes a corrected payload for each failed grep hint, zurdo verifies the proposal against the tree, and only verified heals are offered. On a TTY each heal is a `y/N` edit to the PRD in place; on non-TTY (or with `--no-prompt`) verified heals go to `<prd>.proposed.md` instead. `heal` requires an existing `.zurdo/<slug>/prd.json` from a prior run and `[roles.analyzer]` in config; it never executes tasks and never writes `prd.json`. If you're unsure whether the hint or the code is at fault, the bundled `zurdo-hint-debugger` skill correlates the hint with the iteration logs first.
+
+<div class="callout callout--info" markdown="1">
+**Upgrading from ≤ 1.6?** `analyze` and `heal` used to be flags on `run`. The old spellings (`zurdo run --analyze`, `zurdo --analyze`, `zurdo run --heal`) still work identically but print a stderr deprecation notice — see [Commands](commands.md#zurdo-heal--re-aim-misaimed-grep-hints).
+</div>
 
 ## CI integration
 
@@ -202,18 +223,18 @@ Notes:
 
 | Symptom                                                            | Cause                                                                            | Fix                                                                                              |
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `lock held by pid <n>` (exit `3`)                                  | Another `zurdo run` is in flight against the same PRD.                           | Wait for it. If no zurdo is running, the lock is stale and the next run will take it over.        |
+| `lock held by pid <n>` (exit `3`)                                  | Another `zurdo run` (or an open `zurdo review` session) holds the run lock for the same PRD. | Wait for it. If no zurdo is running, the lock is stale and the next run will take it over.        |
 | `state mismatch — pass --reset` (exit `4`)                         | The PRD has changed since the last successful run.                               | If the edits were intentional, run with `--reset` (old state archives under `.zurdo/<slug>/.archive/<ts>/`). |
 | `unknown model anthropic:<x>` (exit `4`)                           | The model under `[effort_map.<provider>]` is unknown or unsupported under your auth. | Probe with `zurdo check-models`, fix the entry, or pass `--skip-model-check`.                    |
 | `task heading uses hyphen-minus where em-dash required` (exit `2`) | The H2 task heading uses `-` or `–` instead of U+2014 `—`.                       | Insert a real em-dash. macOS: `Option+Shift+-`. Linux Compose key: `Compose - - -`.              |
 | `acceptance criterion has no hint` (exit `2`)                      | A `- [ ]` line lacks any hint.                                                   | Add at least one hint, or `[manual]` if it's a human-review-only criterion.                      |
 | Agent runs forever, no progress                                    | Agent is hung or slow.                                                           | Lower `Agent-timeout` in the task metadata or `[timeouts] agent_seconds` in config.              |
-| `frozen path modified: <path>` fails every iteration               | The task genuinely requires editing a path frozen by `**Frozen**` or `[verification] protected_paths`. | Unfreeze the path or restructure the task — `zurdo --analyze` warns about hint/frozen-glob overlaps up front. |
-| Grep criterion keeps failing though the content looks right        | The hint's pattern or file path is misaimed (moved file, renamed symbol).        | Run `zurdo run <prd> --heal` to re-aim failed grep payloads against the live tree.               |
+| `frozen path modified: <path>` fails every iteration               | The task genuinely requires editing a path frozen by `**Frozen**` or `[verification] protected_paths`. | Unfreeze the path or restructure the task — `zurdo analyze` warns about hint/frozen-glob overlaps up front. |
+| Grep criterion keeps failing though the content looks right        | The hint's pattern or file path is misaimed (moved file, renamed symbol).        | Run `zurdo heal <prd>` to re-aim failed grep payloads against the live tree.                     |
 | Validation error naming `experimental.structural_hints`            | The PRD uses `[symbol:]`/`[references:]`/`[callers:]` while the gate is off.     | Enable both `[lumen] enabled` and `[experimental] structural_hints` — see [Structural verification](lumen.md#turning-it-on). |
 | Pre-flight fails with a non-ready Lumen index                      | A working-tree file the structural index needed could not be parsed.             | `zurdo lumen rebuild`, then re-run. Slow cold repairs after big changes? Keep the index warm with the [Vela watcher](lumen.md#the-vela-watcher). |
 | `task_stalled` in the progress stream; attempts repeat the same failure | The agent is looping on one failure instead of converging.                  | Enable the `[reason]` subsystem so a stall gets a reasoner diagnosis (guide, heal routing, or early halt) — see [Diagnosis & lessons](reason.md). |
-| Criterion passes but proves nothing                                | Hint is too loose (`[shell: true]`, `[file-exists: README.md]`).                 | Tighten the hint. `zurdo --analyze` flags many such no-ops as warnings.                          |
+| Criterion passes but proves nothing                                | Hint is too loose (`[shell: true]`, `[file-exists: README.md]`).                 | Tighten the hint. `zurdo analyze` flags many such no-ops as warnings.                            |
 | `[Y/n]` prompts appear in CI logs                                  | Default mode is interactive when stdin happens to be a TTY.                      | Always pass `--no-prompt` in CI (plus `--resume` or `--reset` to declare intent explicitly).     |
 | `zurdo: command not found` after `brew install`                    | Homebrew bin directory not on PATH (Linux specifically).                         | `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` in your shell rc.                       |
 

@@ -29,7 +29,7 @@ Zurdo reads its configuration from `.zurdo/config.toml` at the **repo root** —
 provider = "anthropic"            # or "codex" or "copilot"
 # model is determined by [effort_map.<provider>] below
 
-[roles.analyzer]                  # required for --analyze
+[roles.analyzer]                  # required for zurdo analyze / heal
 provider = "anthropic"
 model    = "claude-haiku-4-5"
 
@@ -87,7 +87,7 @@ enabled = false
 
 **Executor** is the agent that does the work. It has no fixed model — the model is chosen per task from the effort map, keyed by the task's `**Effort**` metadata. Switching provider is a one-line edit to `[roles.executor] provider`.
 
-**Analyzer** powers `--analyze`'s LLM critique of your PRD. It names a concrete model directly (analysis doesn't vary by task effort). If you never use `--analyze`, it sits unused.
+**Analyzer** powers `zurdo analyze`'s LLM critique of your PRD and `zurdo heal`'s re-aim proposals. It names a concrete model directly (analysis doesn't vary by task effort). If you never use `analyze` or `heal`, it sits unused.
 
 **Reasoner** (optional, `[roles.reasoner]` — same `provider`/`model` shape as the analyzer) powers the opt-in [reason subsystem](reason.md)'s diagnosis and lesson-extraction calls. When absent, those calls fall back to `[roles.analyzer]`. Enabling `[reason]` with neither role configured is a config-load error.
 
@@ -113,7 +113,7 @@ Before a run, zurdo probes each mapped model against its provider CLI (the *mode
 | `defaults.max_attempts`          | Per-task attempt budget when the PRD omits `**Max-Attempts**`.                      | `3`     |
 | `defaults.max_total_iterations`  | Cap on agent invocations across the whole run; `0` = unlimited. Overridable with `--max-iterations`. | `0`     |
 | `defaults.parallel_criteria`     | Run a task's criteria concurrently instead of sequentially. Enable only if every `shell:`/`http:` criterion is hermetic — parallel non-hermetic checks can interfere with each other. | `false` |
-| `defaults.analyzer_parallelism`  | Concurrent analyzer LLM calls during `--analyze` (range 1–16; `1` preserves fully sequential behavior). | `4`     |
+| `defaults.analyzer_parallelism`  | Concurrent analyzer LLM calls during `zurdo analyze` (range 1–16; `1` preserves fully sequential behavior). | `4`     |
 | `timeouts.criterion_seconds`     | Time limit per `shell:`/`http:` hint execution (file/grep checks are local and unbounded). | `300`   |
 | `timeouts.agent_seconds`         | Time limit per agent invocation when the task omits `**Agent-timeout**`.            | `1800`  |
 

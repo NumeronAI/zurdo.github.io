@@ -165,7 +165,7 @@ The rules, all machine-checked:
 - **Placement.** `### Requirements`, when present, must appear **before** `### Description`.
 - **Id shape and uniqueness.** `req-id` matches `^req-[a-z0-9-]+$` and must be unique within the task — duplicates are validation errors.
 - **Dangling references are `validate` errors.** Every `[proves:<req-id>]` must reference a requirement declared in the same task's block.
-- **Uncovered requirements are `--analyze` warnings.** A declared requirement no criterion proves is surfaced by analysis, not by `validate`.
+- **Uncovered requirements are `zurdo analyze` warnings.** A declared requirement no criterion proves is surfaced by analysis, not by `validate`.
 
 `[proves:]` is a modifier, not a hint — it runs no check and never gates the criterion. Place it after all hint blocks on the line. Criteria without it are valid (they still gate the task, just untraced), and multiple criteria may prove the same requirement.
 
@@ -179,9 +179,9 @@ Alongside the PRD it writes a `<prd-name>.trail.md` **reasoning sidecar** — a 
 
 ```sh
 zurdo validate prds/feature.md              # deterministic grammar + dep-graph checks
-zurdo --analyze prds/feature.md             # + hint lints and LLM critique
+zurdo analyze prds/feature.md               # + hint lints and LLM critique
 ```
 
-`validate` catches structural errors instantly and for free. `--analyze` additionally flags hints that prove nothing (see [Hints reference](hints.md#beware-vacuous-hints-and-tautologies)) and criteria too vague to verify — before any tokens are spent on a run.
+`validate` catches structural errors instantly and for free. `zurdo analyze` additionally flags hints that prove nothing (see [Hints reference](hints.md#beware-vacuous-hints-and-tautologies)) and criteria too vague to verify — before any tokens are spent on a run.
 
 Next: [Hints reference](hints.md)

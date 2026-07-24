@@ -41,7 +41,7 @@ flowchart TD
 
     subgraph GATE["3 · Verify the PRDs themselves"]
         HV["Human review:<br/>criteria honest, falsifiable, complete?"]
-        ZV["zurdo validate<br/>zurdo run --analyze"]
+        ZV["zurdo validate<br/>zurdo analyze"]
     end
 
     subgraph RUN["4 · Run — machine time, off your clock"]
@@ -98,7 +98,7 @@ If authoring drags past an hour, that's usually the previous phase leaking: the 
 Two gates, in order:
 
 1. **Human pass.** Are the criteria honest? Would each one fail on today's tree? Is anything a tautology the agent can satisfy without doing the work? Is every `[manual]` genuinely un-automatable?
-2. **Machine pass.** `zurdo validate` for grammar, dependency graph, and the deterministic lints; `zurdo run --analyze` for the deeper pre-flight when the PRD warrants it.
+2. **Machine pass.** `zurdo validate` for grammar, dependency graph, and the deterministic lints; `zurdo analyze` for the deeper pre-flight when the PRD warrants it.
 
 Findings loop back to phase 2. Nothing runs until both gates are clean. This is the cheapest verification in the whole system — a bad criterion caught here costs a minute; caught after a run, it costs the run.
 
@@ -110,7 +110,7 @@ This phase consumes zero engineer attention by design. Its duration does not app
 
 ### 5 · Review — 30 min to 1 hr, when free
 
-Read the report (`zurdo report`), walk the evidence, and settle every `[manual]` obligation. Review is not "did it work at all?" — the criteria already answered that. Review is *"is this how I'd have built it?"* Green means the evidence you demanded exists and wasn't tampered with; it does not mean merge. The human reviews the diff — verification just did the triage.
+Read the report (`zurdo report`), walk the evidence, and settle every `[manual]` obligation — the [`zurdo review` TUI](usage.md#reviewing-a-run-with-zurdo-review) puts each criterion's provenance and the baseline diff next to the sign-off action, and records every sign-off in a tamper-evident log. Review is not "did it work at all?" — the criteria already answered that. Review is *"is this how I'd have built it?"* Green means the evidence you demanded exists and wasn't tampered with; it does not mean merge. The human reviews the diff — verification just did the triage.
 
 ### 6 · Decide — merge or re-scope
 
@@ -132,7 +132,7 @@ If the loop feels familiar, it should: it is the agile cycle with the sprint com
 | Sprint commitment | The locked PRD | Immutable during the run by design — mid-sprint renegotiation has no entry point |
 | The sprint | The run (phase 4) | Two weeks becomes hours; burndown becomes `Max-Attempts` budgets and cost accounting |
 | Daily standup | `progress.log` + iteration records | Same information, zero meetings — read it when you review, or never |
-| Sprint review / demo | Review (phase 5): report, evidence, `[manual]` sign-off | "It works, trust me" is replaced by evidence the runtime gathered independently |
+| Sprint review / demo | Review (phase 5): report, evidence, `[manual]` sign-off in `zurdo review` | "It works, trust me" is replaced by evidence the runtime gathered independently |
 | Retrospective | The decide step (phase 6) | Persistently failing criteria are the retro input: they tell you the scope's model of the system was wrong |
 | Velocity | `throughput ≈ attention ÷ (author + review)` | Measured in merged scopes per unit of attention, not story points |
 

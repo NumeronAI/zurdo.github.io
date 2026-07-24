@@ -17,24 +17,28 @@ page_nav:
         url: '/docs/providers.html'
 ---
 
-What's moving in zurdo, relative to the released **v1.6.0** these docs describe. Items here are subject to change until they ship.
+What's moving in zurdo, relative to the released **v1.7.0** these docs describe. Items here are subject to change until they ship.
 
-## Just shipped: v1.6.0 (2026-07-23)
+## Just shipped: v1.7.0 (2026-07-24)
 
-The capstone of the **self-healing loop** arc (v1.3 → v1.6). Everything below is documented in the main docs; highlights:
+The **surface upgrades** milestone — how you drive and read zurdo day to day. Everything below is documented in the main docs; highlights:
+
+- **First-class subcommands.** `zurdo analyze` and `zurdo heal`, promoted out of `run --analyze` / `run --heal`. The old flag spellings keep working through 1.x (with a stderr deprecation notice); removal waits for a future 2.0. [Details](commands.md#zurdo-analyze--pre-flight-analysis).
+- **The review TUI.** `zurdo review <prd>` walks a run's evidence — task statuses, per-criterion provenance, the live baseline diff — and takes `[manual]` sign-offs in-band, recorded to a tamper-evident log; signing a task's last `[manual]` criterion flips it `passed-pending-review` → `passed`. [Details](commands.md#zurdo-review--walk-the-evidence-sign-off-manual-criteria).
+- **A real help system.** Every subcommand's `--help` now describes its modes, exit codes, and examples, and `zurdo help <topic>` prints compiled-in guide pages (`hints`, `prd-grammar`, `exit-codes`, `config`, `workflow`, `state-dir`) offline in the terminal.
+- **Completions and man pages.** `zurdo completions <shell>` for five shells, generated from the live command tree; Homebrew installs completions and man pages automatically, and release tarballs bundle both.
+
+## Recently shipped: v1.6.0 (2026-07-23)
+
+The capstone of the **self-healing loop** arc (v1.3 → v1.6):
 
 - **The reason subsystem, complete.** Stall detection on failure fingerprints, one-call reasoner diagnosis with `retry_with_guidance` / `halt_task` / `suggest_heal` verdicts, and a repository-scoped **lesson library**: a task that stalls and then recovers leaves behind a rule future runs are told about before they trip over the same quirk. Opt-in, fail-open, and never able to mark work passed. [Details](reason.md).
-- **Lessons reach every authoring surface.** The `zurdo reason match` preview CLI, a lessons section in `--analyze`, lesson injection into `--heal` proposals, and read-only lesson consultation by the bundled `zurdo-prd-author` and `zurdo-hint-debugger` skills.
-- **Structural hints, executable end-to-end** (v1.3–1.4, experimental). `[symbol:]`, `[references:]`, and `[callers:]` verify facts about named code symbols against the persistent Lumen index, with the optional Vela watcher keeping it fresh. [Details](lumen.md).
-- **A readable live tee** (v1.5). Agent output renders as step summaries on a TTY (`• tool Bash: …`, `• edit: …`) for all three provider CLIs; `--raw-agent` restores the firehose. [Details](usage.md#reading-the-agent-as-it-works).
+- **Lessons reach every authoring surface.** The `zurdo reason match` preview CLI, a lessons section in `analyze`, lesson injection into `heal` proposals, and read-only lesson consultation by the bundled `zurdo-prd-author` and `zurdo-hint-debugger` skills.
+- **Structural hints, executable end-to-end** (v1.3–1.4, experimental) against the Lumen index, and **the readable live tee** (v1.5). [Details](lumen.md), [details](usage.md#reading-the-agent-as-it-works).
 
 ## In development
 
-The current milestone reworks how you drive and read zurdo day to day:
-
-- **First-class subcommands** — `zurdo analyze` and `zurdo heal`, promoted out of `run --analyze` / `run --heal` (the old forms keep working).
-- **A richer help system** — more useful per-command `--help` plus `zurdo help <topic>` guide pages.
-- **An interactive review TUI** — `zurdo review <prd>` to walk per-task evidence and sign off `[manual]` criteria without leaving the terminal.
+The next milestone is being scoped. Candidates noted (not scheduled) during the surface-upgrades design: `--format json` on more subcommands (`validate`, `verify`, `state list`, `check-models`) and a `zurdo doctor` environment check.
 
 Nothing here is committed until it ships — watch this page after the next release, or [open an issue](https://github.com/ElOrlis/zurdo-dist/issues) to influence what comes next.
 
@@ -42,6 +46,7 @@ Nothing here is committed until it ships — watch this page after the next rele
 
 | Version | Date       | Highlights                                                                                          |
 | ------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| 1.7.0   | 2026-07-24 | Surface upgrades: `zurdo analyze`/`heal` first-class, `zurdo review` TUI with logged `[manual]` sign-off, `zurdo help <topic>`, completions + man pages. |
 | 1.6.0   | 2026-07-23 | Lesson library + cross-surface lesson reads: `zurdo reason` CLI, lessons in `--analyze`/`--heal` and the authoring skills. |
 | 1.5.0   | 2026-07-23 | Live agent tee renders step summaries on a TTY; `--raw-agent` opt-out; claude adapter streams JSONL. |
 | 1.4.1   | 2026-07-22 | Structural hints verify the current working tree; per-occurrence binding ambiguity fix.              |

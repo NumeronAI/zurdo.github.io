@@ -41,7 +41,7 @@ The executor provider is one line in `.zurdo/config.toml`:
 provider = "anthropic"    # or "codex" or "copilot"
 ```
 
-`zurdo init` writes all three `[providers.*]` and `[effort_map.*]` blocks, so switching is just editing that line. The analyzer role (used by `--analyze`) is configured independently and may use a different provider than the executor.
+`zurdo init` writes all three `[providers.*]` and `[effort_map.*]` blocks, so switching is just editing that line. The analyzer role (used by `zurdo analyze` and `zurdo heal`) is configured independently and may use a different provider than the executor.
 
 Each `[providers.<name>]` block lets you rename the binary (if yours isn't on `PATH` under the default name) and append extra arguments to every invocation:
 

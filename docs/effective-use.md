@@ -37,7 +37,7 @@ flowchart LR
     end
     subgraph D3 ["Discernment (pre-spend)"]
         AUTHOR --> VALIDATE["4 · zurdo validate"]
-        VALIDATE --> ANALYZE["5 · zurdo --analyze<br/>(--fix to refine)"]
+        VALIDATE --> ANALYZE["5 · zurdo analyze<br/>(--fix to refine)"]
         ANALYZE -->|warnings| AUTHOR
     end
     ANALYZE --> RUN["6 · zurdo run"]
@@ -45,7 +45,7 @@ flowchart LR
         RUN --> REVIEW["7 · report · run-diff<br/>· manual criteria"]
         REVIEW --> SHIP["8 · commit<br/>(your call)"]
     end
-    REVIEW -->|hint misaimed| HEAL["--heal /<br/>hint-debugger"] --> RUN
+    REVIEW -->|hint misaimed| HEAL["zurdo heal /<br/>hint-debugger"] --> RUN
 ```
 
 Steps 1–5 cost nothing or almost nothing. Step 6 is where tokens are spent — everything before it exists to make that spend land.
@@ -96,11 +96,11 @@ Discernment isn't only for outputs — evaluate your *input* while it's free:
 
 ```sh
 zurdo validate prds/feature.md        # deterministic: grammar + dep-graph; instant, run constantly
-zurdo --analyze prds/feature.md       # static hint lints + an LLM critique of the PRD itself
-zurdo run prds/feature.md --analyze --fix   # iterative refinement loop → <prd>.proposed.md
+zurdo analyze prds/feature.md         # static hint lints + an LLM critique of the PRD itself
+zurdo analyze prds/feature.md --fix   # iterative refinement loop → <prd>.proposed.md
 ```
 
-`validate` catches structural errors (em-dash headings, hintless criteria, dangling `Depends-on`) instantly. `--analyze` catches the subtler failure mode: hints that *execute* but prove nothing — `[shell: true]`, grep tautologies, criteria too vague to verify — plus requirements no criterion covers. `--fix` turns the critique into an edit loop that converges on a tightened PRD, which you review and accept.
+`validate` catches structural errors (em-dash headings, hintless criteria, dangling `Depends-on`) instantly. `analyze` catches the subtler failure mode: hints that *execute* but prove nothing — `[shell: true]`, grep tautologies, criteria too vague to verify — plus requirements no criterion covers. `--fix` turns the critique into an edit loop that converges on a tightened PRD, which you review and accept.
 
 The discipline: **never pay for a run to discover what analysis would have told you.**
 
@@ -120,9 +120,9 @@ A green summary table is a claim; the evidence behind it is on disk. Discernment
 
 - **The product.** Read `.zurdo/<slug>/run-diff.patch` — the unified diff of everything the run changed. Criteria prove behavior; only a human reads for design, naming, and the change nobody asked for. `zurdo report prds/feature.md --format md` gives the curated per-task account.
 - **The process.** Watch the `passed-at-preflight` tally (those criteria prove nothing about this run) and any `evidence-modified` warnings. If a task burned all its attempts, `.zurdo/<slug>/iterations/` holds every prompt and every byte of agent output — read the last failing iteration before blaming the agent or the PRD.
-- **The performance.** `passed-pending-review` tasks are waiting on your `[manual]` sign-off — that status *is* the human checkpoint; don't rubber-stamp it.
+- **The performance.** `passed-pending-review` tasks are waiting on your `[manual]` sign-off — that status *is* the human checkpoint; don't rubber-stamp it. The [`zurdo review` TUI](usage.md#reviewing-a-run-with-zurdo-review) walks each obligation next to its evidence and records the sign-off in a tamper-evident log.
 
-When a criterion fails and you suspect the *hint* rather than the code — a moved file, a renamed symbol — the bundled `zurdo-hint-debugger` skill correlates the hint with the iteration logs, and `zurdo run <prd> --heal` proposes verified re-aims for failed grep hints. After any hand-edits or a rebase, `zurdo verify prds/feature.md` re-runs every terminal task's criteria against the current tree.
+When a criterion fails and you suspect the *hint* rather than the code — a moved file, a renamed symbol — the bundled `zurdo-hint-debugger` skill correlates the hint with the iteration logs, and `zurdo heal <prd>` proposes verified re-aims for failed grep hints. After any hand-edits or a rebase, `zurdo verify prds/feature.md` re-runs every terminal task's criteria against the current tree.
 
 ## Step 8 — Ship it yourself (Diligence)
 
@@ -192,7 +192,7 @@ Retry-After header.
 - [ ] rate-limit error copy approved by product [manual]
 ```
 
-**Steps 4–5 — Validate and analyze.** `zurdo validate` fails instantly on the first save — the editor had autocorrected the task heading's em-dash to an en-dash — and passes once fixed. `zurdo --analyze` then earns its keep twice on the first draft (which differed from the PRD above): a static lint flagged `[grep: .* in src/app.rs]` as a tautology that matches anything, and the LLM critique flagged `req-configurable` as declared but proved by nothing. The tautology became the `--test login_rate_limit` shell hint; the uncovered requirement became the `[grep:]`/`[no-grep:]` pair on `src/config.rs` and the middleware file. Total cost so far: one analyze call.
+**Steps 4–5 — Validate and analyze.** `zurdo validate` fails instantly on the first save — the editor had autocorrected the task heading's em-dash to an en-dash — and passes once fixed. `zurdo analyze` then earns its keep twice on the first draft (which differed from the PRD above): a static lint flagged `[grep: .* in src/app.rs]` as a tautology that matches anything, and the LLM critique flagged `req-configurable` as declared but proved by nothing. The tautology became the `--test login_rate_limit` shell hint; the uncovered requirement became the `[grep:]`/`[no-grep:]` pair on `src/config.rs` and the middleware file. Total cost so far: one analyze call.
 
 **Step 6 — The run.** `zurdo run prds/rate-limit-login.md`. The first iteration of `task-limiter` is instructive — the agent wrote a working limiter but hard-coded the window:
 
@@ -213,7 +213,7 @@ Retry-After header.
 
 The retry prompt carried that failure verbatim, so iteration 2 fixed the actual defect instead of guessing. Note what did *not* happen: the agent's own claim of success after iteration 1 was never consulted — the `no-grep` hint caught what a self-report would have waved through.
 
-**Step 7 — Review.** The summary shows `task-limiter passed` and `task-wire-login passed-pending-review` — the `[manual]` criterion is holding the door. Reading `.zurdo/<slug>/run-diff.patch` takes five minutes because the scope was fenced in step 2: two new files, two touched ones, no drive-by edits, ADRs untouched. The error copy gets an actual look (it was wrong — "try again later" with no `Retry-After` mention — one small hand-edit), then `zurdo verify prds/rate-limit-login.md` confirms every criterion still passes against the edited tree.
+**Step 7 — Review.** The summary shows `task-limiter passed` and `task-wire-login passed-pending-review` — the `[manual]` criterion is holding the door. `zurdo review prds/rate-limit-login.md` opens the evidence walker: the diff surface confirms the fenced scope from step 2 held (two new files, two touched ones, no drive-by edits, ADRs untouched), and the error copy gets an actual look in the evidence detail (it was wrong — "try again later" with no `Retry-After` mention — one small hand-edit). `zurdo verify prds/rate-limit-login.md` confirms every criterion still passes against the edited tree, and the `[manual]` sign-off (`s`, with a one-line note about the copy fix) flips the task to `passed` on the record.
 
 **Step 8 — Ship.** A branch, a commit, a PR with a human-written description — none of it zurdo's doing, all of it informed by evidence zurdo left on disk.
 
@@ -223,7 +223,7 @@ The retry prompt carried that failure verbatim, so iteration 2 fixed the actual 
 | -------------- | -------------- | ------------------------------------------------------------------------------------------------ |
 | Delegation     | 1–2            | Research first; give the loop verifiable outcomes, keep design and judgment for yourself.        |
 | Description    | 3              | Author evidence-first with `zurdo-prd-author`; write the hint before the criterion prose.        |
-| Discernment    | 4–5, 7         | `validate` and `--analyze` before spending; read the diff and the provenance flags after.        |
+| Discernment    | 4–5, 7         | `validate` and `analyze` before spending; walk the diff and the provenance in `zurdo review` after. |
 | Diligence      | 8              | You commit, you review, you answer for it — zurdo just makes sure the evidence is real.          |
 
 Next: [Writing PRDs](writing-prds.md)
