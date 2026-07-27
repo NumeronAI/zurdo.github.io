@@ -1,0 +1,15 @@
+## Objective
+Integrate the zurdo.sh issue creation endpoint (`/issues`) with the internal working repository to enable seamless issue creation workflow.
+
+## Description
+Currently, the zurdo.sh platform has an `/issues` endpoint that should be connected to automatically create issues within our internal working repository. This integration will allow issues submitted through zurdo.sh to be converted into tickets in the internal working repo, improving our issue tracking and project management workflow.
+
+## Requirements
+- Connect zurdo.sh `/issues` endpoint to internal working repository
+- Automatically create issues/tickets in the working repo when submissions are made
+- Ensure proper issue formatting and metadata are preserved
+
+## Success Criteria
+- Issues created via zurdo.sh appear in the internal working repository
+- All relevant issue data is properly transferred and formatted
+- Integration is tested and documented
