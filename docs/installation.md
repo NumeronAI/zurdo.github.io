@@ -46,7 +46,7 @@ brew install ElOrlis/zurdo/zurdo
 # Replace VERSION and TARGET to taste. Available targets:
 #   aarch64-apple-darwin
 #   x86_64-unknown-linux-gnu · aarch64-unknown-linux-gnu
-VERSION=1.7.0
+VERSION=1.13.1
 TARGET=aarch64-apple-darwin
 curl -fsSL "https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}/zurdo-v${VERSION}-${TARGET}.tar.gz" \
   | tar -xz -C /usr/local/bin zurdo
@@ -90,6 +90,15 @@ Zurdo shells out to an agent CLI for the executor role. Install and authenticate
 ```sh
 zurdo --version
 ```
+
+Once you've run `zurdo init` in a repository, `zurdo doctor` verifies the rest of the picture — that the config loads, every configured provider's CLI resolves on `PATH`, and each mapped model is actually available to your account:
+
+```sh
+zurdo doctor                # full check, probes included
+zurdo doctor --skip-probes  # offline: no provider process is spawned at all
+```
+
+It exits `4` on anything that would genuinely stop a run and `0` when only advisory findings were reported. See [Commands](commands.md#zurdo-doctor--diagnose-the-environment).
 
 <div class="callout callout--info" markdown="1">
 **Note** `zurdo: command not found` right after `brew install` on Linux usually means the Homebrew bin directory is not on your `PATH` — add `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` to your shell rc.

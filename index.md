@@ -44,7 +44,7 @@ grid_navigation:
       cta: Read more
       url: '/docs/writing-prds.html'
     - title: Hints reference
-      excerpt: The seven core hint types and the experimental structural hints, with examples.
+      excerpt: The seven core hint types and the three structural hints, with examples.
       cta: Read more
       url: '/docs/hints.html'
     - title: Structural verification
@@ -74,7 +74,7 @@ grid_navigation:
 ---
 
 <div class="callout callout--info" markdown="1">
-**Version** This documentation describes **zurdo v1.7.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
+**Version** This documentation describes **zurdo v1.13.1**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
 </div>
 
 ## Why zurdo
@@ -101,6 +101,7 @@ brew install ElOrlis/zurdo/zurdo
 
 # 1. From the root of the repo you want zurdo to drive:
 zurdo init                            # writes .zurdo/config.toml, installs bundled skills
+zurdo doctor                          # confirm config, CLIs, and models are run-ready
 
 # 2. Write a PRD (see Writing PRDs for the full grammar):
 cat > prds/hello.md <<'EOF'

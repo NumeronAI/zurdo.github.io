@@ -5,7 +5,7 @@ comments: false
 
 # Hero section
 title: Hints reference
-description: "The seven core hint types and the three experimental structural hints, with examples."
+description: "The seven core hint types and the three structural hints, with examples."
 
 # Micro navigation
 micro_nav: true
@@ -26,7 +26,7 @@ Hints are the machine-checkable half of an acceptance criterion. After every age
 
 | Hint                                 | Behavior                                                                            |
 | ------------------------------------ | ------------------------------------------------------------------------------------ |
-| `[shell: <cmd>]`                     | Run the command; pass iff it exits `0`. Working directory is the repo root.         |
+| `[shell: <cmd>]`                     | Run the command; pass iff it exits `0` **and** its output does not show a test runner that ran zero tests ([below](#a-shell-hint-that-runs-no-tests-fails)). Working directory is the repo root. |
 | `[http: <method> <url> -> <status>]` | Make the request; pass iff the response status matches. An optional `contains "<substring>"` tail additionally asserts the response body contains the substring (literal, case-sensitive; a non-empty `contains` against `HEAD` always fails). |
 | `[file-exists: <path>]`              | Pass iff a file exists at the path (relative to repo root).                          |
 | `[grep: <pattern> in <file>]`        | Pass iff the regex pattern is found in the file.                                     |
@@ -56,6 +56,21 @@ Multiple hints on one criterion are **AND'd** — all must pass:
 ```
 
 Mixing `[manual]` with automated hints means the automated portion still gates; the manual portion surfaces a review obligation in reports, settled by an explicit sign-off in the [`zurdo review` TUI](usage.md#reviewing-a-run-with-zurdo-review). A task whose criteria are **all** `[manual]` short-circuits at pre-flight to `passed-pending-review` and never invokes the agent.
+
+## A `[shell:]` hint that runs no tests fails
+
+Exit `0` is not proof on its own. `cargo test <filter matching nothing>` exits `0` having run nothing at all — a criterion aimed at a test that was never written passes, and the run reports work that does not exist. Since v1.13.0 zurdo closes that hole: a `[shell:]` hint whose combined stdout/stderr shows a **test runner reporting zero tests** fails with the typed reason `a test runner ran zero tests`, whatever the exit code.
+
+Two runner dialects are recognized:
+
+- **libtest** (`cargo test`, `cargo bench --test`) — a `running N tests` report with no `N ≥ 1` line among them.
+- **`go test`** — a package line ending `[no tests to run]`. A `[no test files]` package line is *not* a report at all and never fails the hint.
+
+The check reads the untruncated capture, so a single genuine `running 1 test` among hundreds of zero-report lines still passes, and it applies everywhere criteria are evaluated: pre-flight, every iteration, `zurdo verify`, and `zurdo heal`. Runners whose output wasn't captured at authoring time (`cargo nextest`, the JS runners) are deliberately not matched; `pytest` needs no matcher because it already exits `5` on an empty filter. A criterion that genuinely wants a zero-test invocation to pass can redirect its output (`… > /dev/null`) to escape the check.
+
+<div class="callout callout--warning" markdown="1">
+**Why this exists** A milestone's worth of zurdo's own PRD tasks once recorded themselves as passed against `[shell: cargo test <name>]` criteria naming tests nobody had written — all four passed at pre-flight, with zero agent attempts, and a release shipped claiming flags the binary did not have. The empty-test-run check and the [run-end vacuous-pass warning](usage.md#when-a-task-passes-without-doing-anything) are the two guards that came out of it.
+</div>
 
 ## Timeouts
 
@@ -90,16 +105,38 @@ Do **not** use `[shell: ! test -e <path>]` or `[shell: ! grep -q <pat> <file>]` 
 
 ## Beware vacuous hints and tautologies
 
-Hints must actually test something meaningful. Two pitfalls prove nothing:
+Hints must actually test something meaningful. Three pitfalls prove nothing:
 
 - **Vacuous shell hints** — `[shell: true]` or `[shell: echo "works"]` always pass; no work is verified.
 - **Grep tautologies** — `[grep: .* in src/main.rs]` matches everything and proves nothing; `[no-grep: ^$ in src/main.rs]` fails tautologically.
+- **Doc echoes** — a criterion whose *only* hint greps a prose document for a phrase the criterion's own text names. The task's job is to write that phrase, so the criterion cannot fail: it proves the phrase was typed, not that anything works.
 
-`zurdo analyze` detects and warns about both classes. It also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo analyze <prd> --static-only` — the deterministic lint surfaces vacuous-shell and grep-tautology warnings before you commit compute to a real run.
+### The six warn-lint families
 
-## Structural hints (experimental)
+Both `zurdo validate` and `zurdo analyze` surface the same deterministic lint families — as `warning:` lines on stderr from `validate`, and as `Finding`s at warning severity from `analyze`:
 
-Three additional hint types verify facts about **named code symbols** — existence, references, call relationships — by static analysis instead of shell commands. They resolve against **Lumen**, zurdo's persistent structural index at `.zurdo/lumen/`, and are gated behind two config switches: `[lumen] enabled = true` **and** `[experimental] structural_hints = true` (setting the gate without Lumen is a config-load error).
+| Family                  | Fires when                                                                                             | Promotable by `--strict`? |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `grep-target`           | A `[grep:]`/`[no-grep:]` pattern targets a directory or doesn't compile.                                | Yes                       |
+| `vacuous-shell`         | A `[shell:]` payload can't fail (`true`, a bare `echo`, …).                                             | Yes                       |
+| `grep-tautology`        | A pattern matches everything (or nothing) by construction.                                              | Yes                       |
+| `uncovered-requirement` | A declared `### Requirements` id no `[proves:]` criterion covers.                                       | Yes                       |
+| `doc-echo`              | A criterion's sole hint greps a prose doc — extension `md`, `mdx`, `markdown`, `rst`, or `adoc`, or a path starting `docs/` — for a phrase the criterion itself names. | No — advisory pending field data on false positives |
+| `skill-resolution`      | A PRD-referenced skill can't be resolved.                                                               | No — permanently exempt; skills are user-managed, so a CI checkout legitimately lacks them |
+
+`zurdo validate --strict` promotes the four promotable families to validation errors, so a PRD that would otherwise pass with warnings exits `2` — see [CI integration](usage.md#ci-integration).
+
+Two remedies clear a `doc-echo` finding, and the suggestion names both: pin a **constant the change introduces** rather than the prose describing it, or add a **second hint that checks the behavior** so the criterion no longer rests on the grep alone. The lint already exempts patterns that carry a constant anchor (a digit, `/`, `_`, `::`, a `.` before an alphanumeric, a backtick, a leading `-`) or any regex metacharacter — a hand-built pattern is a deliberate act of precision, not an echo.
+
+`zurdo analyze` also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo analyze <prd> --static-only`: the deterministic lint surfaces every family above before you commit compute to a real run.
+
+## Structural hints
+
+Three additional hint types verify facts about **named code symbols** — existence, references, call relationships — by static analysis instead of shell commands. They resolve against **Lumen**, zurdo's persistent structural index at `.zurdo/lumen/`, and need one config switch: `[lumen] enabled = true`.
+
+<div class="callout callout--info" markdown="1">
+**Upgrading from ≤ 1.8?** These hints left `[experimental]` in **v1.9.0**. `[experimental] structural_hints` is deprecated and ignored — it still loads so old configs keep working, but it decides nothing and warns on stderr at config load. `[lumen] enabled = true` is now the only gate, and the old "can't enable structural hints with Lumen off" config-load error is gone.
+</div>
 
 ```
 [symbol: <kind> <qualified-name> in <file>]

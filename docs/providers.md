@@ -60,15 +60,39 @@ Zurdo never hardcodes a model. Each task's `**Effort**` label is looked up in `[
 Before a run, zurdo probes every mapped model against its provider CLI to catch typos and plan-gated models **before** any task starts. A rejected model fails pre-flight with exit `4`.
 
 ```sh
-zurdo check-models          # probe the existing config, write nothing
+zurdo doctor                # probe the existing config, write nothing
 zurdo init --check-models   # probe as part of init
 ```
 
-`zurdo check-models` prints a status table with a row per `effort_map` entry plus each configured analyzer model, and exits `0` when everything is available or `4` on any unknown/unsupported entry — same semantics as the `run` pre-flight. Bypass the probe with `--skip-model-check` (useful in CI against stubbed CLIs).
+`zurdo doctor`'s `models` section prints a status row per `effort_map` entry plus each configured analyzer model, and reports `4` on any unknown/unsupported entry — same semantics as the `run` pre-flight. Bypass the probe at run time with `--skip-model-check` (useful in CI against stubbed CLIs), or suppress every provider spawn in doctor itself with `--skip-probes`.
+
+<div class="callout callout--info" markdown="1">
+**`zurdo check-models` is deprecated** since v1.9.0 in favor of `zurdo doctor`, which probes the same rows and adds the vocabulary canary below. It is retained through 1.x with behavior and exit codes unchanged so existing scripts keep working, and prints one stderr deprecation line per invocation.
+</div>
 
 ### Copilot and `auto`
 
-The default Copilot effort map uses `auto`, which lets the Copilot CLI pick the model. Concrete dotted ids (e.g. `claude-sonnet-4.6`) are plan-gated — whether they work depends on your Copilot subscription. Probe with `zurdo check-models` before relying on one.
+The default Copilot effort map uses `auto`, which lets the Copilot CLI pick the model. Concrete dotted ids (e.g. `claude-sonnet-4.6`) are plan-gated — whether they work depends on your Copilot subscription. Probe with `zurdo doctor` before relying on one.
+
+## Event streams and the vocabulary
+
+Zurdo parses each CLI's structured event stream to read assistant text, render [live step summaries](usage.md#reading-the-agent-as-it-works), and build the [reasoner's narrative projection](reason.md#what-the-reasoner-actually-reads). Since v1.10.0 the shapes each provider emits live in a single shared **vocabulary descriptor**, verified against checked-in captures of real provider streams rather than hand-written fakes — one definition consumed by both the provider adapters and the step summarizer, so the two can't drift apart.
+
+### The vocabulary canary
+
+Provider CLIs change their event shapes on their own schedules, and a vocabulary that has silently gone stale is hard to spot: the run keeps working (the executor role doesn't consume assistant text) while every analyzer-role surface fails. The **canary** warns when a provider's stream *parses* but yields no extractable assistant text — the signature of an upstream change.
+
+It runs in three places, all non-blocking: at `zurdo run` pre-flight over the stdout the model probe already captured (zero extra spawns), at most once per run on the agent path for a cleanly-exited iteration that produced events but no text, and as `zurdo doctor`'s `vocabulary` section. A reported gap is advisory — it never gates an exit code.
+
+Relatedly, a `CompletionCli` parse failure now names the **cause** rather than only the symptom: it reports the event inventory the stream actually carried (event count, unclassified event types, bookkeeping event types), so a vocabulary change is identifiable from one line of output.
+
+<div class="callout callout--warning" markdown="1">
+**Fixed in v1.10.0** Three provider defects worth knowing about if you're upgrading from ≤ 1.9:
+
+- **`codex` could not extract assistant text at all**, breaking every analyzer-role surface (`analyze` LLM checks, `analyze --fix`, `heal` propose, reason blocks, lesson extraction) with `codex JSONL event stream did not contain an assistant message event`. The adapter recognized `message` / `response.completed` events that no shipped codex release emits; the text has always lived in `item.completed` → `item.text`. The executor role, token accounting, iteration captures, and criterion verification were never affected.
+- **`copilot` live step summaries were empty** — an entire task rendered as a single misleading `• result (done)` line. Both providers' `result` shapes are now disambiguated by payload (claude's carries `subtype` and no `exitCode`; copilot's the reverse), and copilot's result line reports premium requests rather than a dollar cost.
+- **Copilot quota exhaustion classified as permanent instead of transient**, failing the task outright instead of backing off. A quota-exhausted account reports `session.error` on stdout with stderr empty; classification now consults the parsed stream's error events, not stderr alone.
+</div>
 
 ## Skill prefixes
 

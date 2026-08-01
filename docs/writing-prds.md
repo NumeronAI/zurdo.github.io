@@ -107,7 +107,7 @@ Only these seven keys are accepted; anything else is an error.
 
 Each line is exactly `**Key**: value` — the key must be bold-wrapped, with no leading whitespace.
 
-**Frozen paths.** `**Frozen**` lists glob patterns naming files the agent must not touch during the task. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, and negation is not supported. Run-wide globs can also be set in `[verification] protected_paths` config — the two sources are enforced as a union. After each iteration, zurdo diffs the tree against the run-start baseline: a modified frozen path fails the iteration **regardless of criteria results**, and the retry prompt tells the agent to revert. Enforcement needs the baseline, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
+**Frozen paths.** `**Frozen**` lists glob patterns naming files the agent must not touch during the task. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, and negation is not supported. Run-wide globs can also be set in `[verification] protected_paths` config — the two sources are enforced as a union. After each iteration, zurdo diffs the tree against **that task's** baseline — captured at the task's first attempt and reused across its retries, so a task is never charged for an earlier task's legitimate edits. A modified frozen path fails the iteration **regardless of criteria results**, and the retry prompt tells the agent to revert. Untracked files count: a path that didn't exist when the baseline was captured is still protected once created, and (since v1.13.1) freezing a glob over an untracked path no longer fails every attempt on its own. Enforcement needs the baseline, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
 
 **Skills are user-managed.** Skills named in `**Skills**` are not installed by zurdo. Put them where your provider discovers them — project scope (`.claude/skills/<name>/` for Anthropic, `.agents/skills/<name>/` for Codex/Copilot), global scope (e.g. `~/.claude/skills/`), or custom directories via `[skills] search_paths` in config. Zurdo warn-checks their existence at pre-flight but never installs them. List bare names only — zurdo applies the provider-appropriate prefix (`/` for Anthropic and Copilot, `$` for Codex) at prompt-render time.
 
@@ -126,7 +126,7 @@ Multiple hints on one criterion are AND'd — all must pass:
 - [ ] the build succeeds and emits the binary [shell: cargo build] [file-exists: target/debug/zurdo]
 ```
 
-All seven core hint types, their semantics, and the common authoring pitfalls are on the [Hints reference](hints.md) page. With the Lumen index enabled there are three more — the experimental `[symbol:]`/`[references:]`/`[callers:]` hints that verify code facts by static analysis; see [Structural verification](lumen.md).
+All seven core hint types, their semantics, and the common authoring pitfalls are on the [Hints reference](hints.md) page. With `[lumen] enabled = true` there are three more — the `[symbol:]`/`[references:]`/`[callers:]` hints that verify code facts by static analysis; see [Structural verification](lumen.md).
 
 ## Rule 5: effort values come from your config, not a fixed enum
 

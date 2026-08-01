@@ -23,7 +23,7 @@ page_nav:
 mermaid: true
 ---
 
-A retry loop that keeps replaying the same failure is burning tokens, not converging. The **reason subsystem** (v1.3–v1.6) closes that gap in three moves: it *detects* when a task is stalled, it *diagnoses* the stall with one LLM call and decides whether retrying is even worth it, and it *remembers* — distilling recoveries into **lessons** that future runs in the same repository get told about before they trip over the same quirk.
+A retry loop that keeps replaying the same failure is burning tokens, not converging. The **reason subsystem** (v1.3–v1.6, extended in v1.11.0) closes that gap in three moves: it *detects* when a task is stalled, it *diagnoses* the stall with one LLM call and decides whether retrying is even worth it, and it *remembers* — distilling recoveries into **lessons** that future runs in the same repository get told about before they trip over the same quirk. When a task dies anyway, a terminal [post-mortem](#post-mortems) explains why to *you*.
 
 The whole subsystem is **opt-in and off by default**. With `[reason] enabled = false` (the default), runs behave exactly as they did before the feature existed — except stall *detection*, which is deterministic, free, and always on.
 
@@ -57,6 +57,8 @@ Every failing iteration gets a **failure fingerprint** — a deterministic diges
 
 A stall surfaces the moment it trips: a `task_stalled` line in the progress stream and `progress.log`, and a `## Fingerprint Stalls` section in `zurdo report`. (This is distinct from the older report field for tasks that exhausted their budget — a fingerprint stall fires *before* exhaustion, while there is still time to act.)
 
+Since **v1.8.0** the fingerprint also incorporates **frozen-path violations** and the **criterion index**, so an iteration that fails by touching a frozen path is distinguishable from one that fails a criterion, and two failures at different criteria no longer collide. That changed every fingerprint value: stall history recorded by an earlier zurdo isn't recognized as equal by a newer one. Existing runs proceed normally; they simply start their stall counting over (pass `--reset` if you'd rather start clean).
+
 ## Diagnosis blocks
 
 With `[reason] enabled = true`, a detected stall with attempts remaining triggers **one** single-shot LLM call to the **reasoner** role (`[roles.reasoner]`, falling back to `[roles.analyzer]`). The call reads the stalled attempts' evidence and produces a **diagnosis block**: a structurally-verified artifact carrying a hypothesis about *why* the loop is stuck, guidance for the next attempt, a verdict, and a `confidence` (`low` / `medium` / `high`).
@@ -76,6 +78,53 @@ Every accepted diagnosis block carries exactly one verdict from a closed set:
 | `suggest_heal`        | The reasoner believes the *hint* is misaimed, not the code. Inside the loop this behaves like `retry_with_guidance`; at run end the routing surfaces as a `--heal <task> criterion <n>` summary line and a `## Heal Routings` report section. Zurdo **never runs `heal` itself** — that stays your call. |
 
 Deliberately absent from the enum: anything that marks a criterion passed, skips it, or weakens a hint. There is no verdict that makes work look done.
+
+## Post-mortems
+
+A diagnosis speaks to the *agent*. A **post-mortem** (v1.11.0) speaks to **you** — the first reason block whose audience is human.
+
+It fires under one narrow condition: a stall fingerprint repeating **after** an accepted `retry_with_guidance` block for that same fingerprint. That is the strongest available evidence that the accepted hypothesis was wrong, and the moment the most evidence exists. The task has spent its budget; there is nothing left to guide.
+
+- **Its verdict space is restricted to `{halt_task, suggest_heal}`.** A post-mortem carrying `retry_with_guidance` fails verification and is discarded with a reason — advisory guidance with no subsequent prompt is waste. A `suggest_heal` post-mortem turns a dead run into a concrete `zurdo heal` next action.
+- **Nothing in the runner branches on it.** It is persisted (`kind: post_mortem` under `.zurdo/<slug>/reason/`), priced into the reasoner tally, and rendered from the block store into `zurdo report`'s `## Diagnoses` table. The run's outcome is unchanged by it.
+- **Its evidence bundle sees what the first diagnosis could not:** a never-dropped prior-hypothesis section (the earlier block's hypothesis, guidance, verdict, confidence, citation status, and the observed non-effect) plus **two** narrative projections — the pre-guidance and post-guidance attempts — so the reasoner can check directly whether the agent even followed the guidance.
+
+Cost: one extra reasoner call per persistently-failed task, drawn from the existing per-task allowance of `2` that shipped defaults previously left unreachable. No new config key.
+
+## What the reasoner actually reads
+
+The evidence bundle handed to a diagnosis or post-mortem call is assembled by zurdo, never by the model. Two v1.11.0 changes made it far more informative:
+
+**A structured projection, not a raw stream tail.** The narrative section used to carry a tail-only slice of the provider's raw event stream. It now renders three parts — the executor's final assistant text, a **numbered tool-call log**, and the run-level error when the stream carried one — built by classifying each parsed event against the per-provider [event vocabulary](providers.md#the-vocabulary-canary) and dropping bookkeeping frames. The old window was pathological on exactly the runs where diagnosis matters most: on one 348 KB transcript the reasoner saw 1.18% of it, and the single largest item in that window was the terminal result envelope — at 40% of the entire budget, almost entirely cost telemetry. An unparseable stream (unknown provider, non-JSON output, a crashed CLI) still falls back to a raw tail.
+
+**Its own budget, truncated from both ends.** The narrative window (12 KB) is decoupled from the executor prompt's 4 KB truncation, which stays small deliberately — that prompt is rebuilt every iteration and token economy there is the point. Over-budget projections keep the **head and the tail** with a `[… n bytes elided …]` seam between them: over a tool-call log the head is where an agent picks its paths. A post-mortem's two projections split this budget at 6 KB each rather than doubling it.
+
+**Uncited high confidence is clamped.** Evidence references can point at a criterion, a path, or (new) `{"step": N}` — the Nth line of the numbered tool-call log. A block claiming `confidence: high` while citing no such step is **downgraded to medium** at verification time, with `confidence_clamped: true` recorded on the persisted block rather than silently rewritten. Clamped rather than rejected: an uncited block can still carry correct guidance, and rejecting it would burn a retry that might have worked.
+
+<div class="callout callout--info" markdown="1">
+**Reason-block schema `2`** The bump accommodates the `post_mortem` kind and the `step` evidence-ref shape. Schema mismatches are verification failures, not migrations — blocks persisted under `.zurdo/<slug>/reason/` by an older zurdo are not upgraded in place.
+</div>
+
+## Out-of-tree path references
+
+An agent that reaches outside the repository — editing `~/.claude/skills/`, writing to `$HOME` — produces work that is invisible to the diff, unauditable, and often the real reason a criterion won't go green. Since v1.11.0 every iteration's captured provider stream is scanned **at capture time** for absolute-path-shaped tokens (structured `file_path` / `path` / `changes[].path` fields and `command` tokens, with a leading `~` or `$HOME` resolved) that fall outside the repo root.
+
+Findings are deduped by resolved path, kept in first-seen order, and capped at 20 with an explicit overflow marker. They surface on four places:
+
+| Surface                    | What appears                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `prd.json`                 | `out_of_tree_refs` on the attempt — omitted entirely when empty, so existing state round-trips unchanged |
+| `progress.log`             | An `out_of_tree_refs` event on attempts that found something; a clean attempt appends nothing |
+| `zurdo report`             | An `## Out-of-Tree References` section, one row per attempt that named such a path         |
+| `zurdo review`             | A task-scoped `out-of-tree references:` block, drawn once per task ahead of the selected criterion's detail |
+
+Plus the reasoner's evidence bundle, where it is a **never-dropped section** — visible to a diagnosis or post-mortem even when the bundle is over its byte cap and every optional section has been dropped.
+
+The pass is **advisory and never gating**: it does not distinguish a read from a write, it never fails an iteration or a run, and the findings are deliberately excluded from the failure fingerprint so they cannot perturb stall detection or diagnosis triggering.
+
+<div class="callout callout--warning" markdown="1">
+**The authoring rule that prevents it** An executor resolves bare dotfile paths against `$HOME`, not the repository root. When a task edits dotfiles, spell the path out in full (`<repo-root>/.claude/skills/`) and pair it with an in-tree criterion that gate-checks the edit actually landed in the repo. The bundled `zurdo-prd-author` skill teaches this rule directly.
+</div>
 
 ## Lessons
 
@@ -137,7 +186,7 @@ enabled = true                    # master switch; default false
 | ---------------------------- | ------- | -------------------------------------------------------------------------------------------- |
 | `enabled`                    | `false` | Master switch for diagnosis calls, lesson extraction, and lesson injection.                 |
 | `stall_attempts`             | `2`     | Consecutive same-fingerprint attempts that define a stall (minimum `2`). Detection itself is always on. |
-| `max_diagnoses_per_task`     | `2`     | Diagnosis-call budget per task.                                                             |
+| `max_diagnoses_per_task`     | `2`     | Reasoner-call budget per task — a terminal [post-mortem](#post-mortems) draws from the same allowance. |
 | `max_reasoner_calls_per_run` | `20`    | Run-wide cap on all reasoner calls (diagnosis + extraction).                                |
 | `guidance_max_bytes`         | `4096`  | Size cap on the guidance carried into the next prompt.                                      |
 | `extract_lessons`            | `true`  | Distill a lesson on every stall→pass recovery.                                              |
@@ -148,7 +197,9 @@ enabled = true                    # master switch; default false
 
 ## Reading the results
 
-`zurdo report` gains six sections, each omitted entirely when empty: `## Diagnoses` (accepted calls with model and token usage), `## Fingerprint Stalls`, `## Halt Attributions`, `## Heal Routings`, `## Lessons Extracted`, and `## Lessons Injected`. In `progress.log`, stalls land as `task_stalled` events and every diagnosis call as a `diagnosis_outcome` event (accepted or discarded, with verdict, confidence, and token counts when accepted).
+`zurdo report` gains seven sections, each omitted entirely when empty: `## Diagnoses` (every persisted reason block — diagnoses and post-mortems alike — with model, token usage, and accepted-or-discarded outcome), `## Fingerprint Stalls`, `## Halt Attributions`, `## Heal Routings`, `## Out-of-Tree References`, `## Lessons Extracted`, and `## Lessons Injected`.
+
+In `progress.log`, stalls land as `task_stalled` events and every *diagnosis* call as a `diagnosis_outcome` event (accepted or discarded, with verdict, confidence, and token counts when accepted). Post-mortems deliberately emit no `diagnosis_outcome` — that event keeps meaning what it has always meant, a diagnosis whose guidance an attempt is about to carry — and are read from the block store instead.
 
 <div class="callout callout--info" markdown="1">
 **Note** Reasoner calls are billed LLM calls, visible in the report's token accounting as a separate reasoner tally. The defaults (2 diagnoses per task, 20 calls per run) keep the worst case small relative to the executor spend they exist to prevent.

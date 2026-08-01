@@ -29,7 +29,7 @@ Zurdo parses your PRD into a dependency-ordered list of tasks and runs them **se
 
 1. **Pre-flight.** Before invoking any agent, zurdo runs the task's acceptance criteria against the working tree as-is. The per-criterion verdicts are recorded once in `prd.json` (`preflight_results`) — this "iteration 0" snapshot is what later separates *the agent made this true* from *this was already true*. If everything already passes, the task is marked done without spending a single token. A task whose criteria are *all* `[manual]` short-circuits here to `passed-pending-review` and never invokes the agent.
 2. **Agent iteration.** Zurdo renders a prompt from the task's description and shells out to your configured agent CLI (`claude`, `codex`, or `copilot`). The agent works directly against your working tree.
-3. **Independent verification.** When the agent exits, zurdo runs **every** hint on every criterion itself — shell commands, HTTP probes, file checks, greps, and (opt-in) [structural hints](hints.md#structural-hints-experimental) resolved against the Lumen code index. The agent's own claims about what it did are never consulted. Frozen paths are checked here too: if the run's diff against the baseline touches a path frozen by `**Frozen**` metadata or `[verification] protected_paths` config, the iteration fails regardless of criteria results.
+3. **Independent verification.** When the agent exits, zurdo runs **every** hint on every criterion itself — shell commands, HTTP probes, file checks, greps, and (opt-in) [structural hints](hints.md#structural-hints) resolved against the Lumen code index. The agent's own claims about what it did are never consulted. Frozen paths are checked here too: if the diff against the task's baseline touches a path frozen by `**Frozen**` metadata or `[verification] protected_paths` config, the iteration fails regardless of criteria results.
 4. **Retry or settle.** If any automated hint fails (or a frozen path was modified) and the attempt budget (`Max-Attempts`) has room, the loop goes back to step 2 — and the retry prompt carries the prior attempt's failing checks (hint, typed failure reason, captured stdout/stderr) plus the tail of the agent's own narrative, so the agent knows exactly what just failed. If the budget is exhausted, the task is marked `failed`. Tasks depending on a failed task become `blocked-by-dependency`.
 5. **Stall detection and diagnosis.** Every failing iteration is fingerprinted; consecutive attempts failing the *same way* mark the task **stalled** — the agent is repeating itself, not converging. With the opt-in `[reason]` subsystem enabled, a stall triggers a single reasoner LLM call that either guides the next attempt, routes a misaimed hint to `zurdo heal`, or halts the task early to stop wasted spend — and a task that stalls then recovers leaves behind a **lesson** future runs get told about. The full lifecycle is on [Diagnosis & lessons](reason.md).
 
@@ -74,7 +74,7 @@ flowchart LR
 | `passed`                 | All automated hints passed.                                                |
 | `passed-pending-review`  | Automated hints passed (or none exist); one or more `[manual]` criteria await human sign-off in [`zurdo review`](usage.md#reviewing-a-run-with-zurdo-review) — signing the last one flips the task to `passed`. |
 | `failed`                 | The `Max-Attempts` budget was exhausted with at least one hint still failing. |
-| `blocked-by-dependency`  | A task it `Depends-on` finished `failed`.                                  |
+| `blocked-by-dependency`  | A task it `Depends-on` finished `failed`. **Re-derived on resume** (v1.8.0) from the current dependency graph rather than treated as terminal — fix and re-run the failed dependency and its dependents unblock on the next resume, no `--reset` needed. |
 
 ## State directory layout
 
@@ -90,7 +90,7 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
     ├── prd.json                     # terminal source of truth, atomic writes
     ├── progress.log                 # append-only JSONL event stream
     ├── lock                         # pid + ISO-8601 start time
-    ├── baseline                     # working-tree snapshot at run start (JSON)
+    ├── baseline                     # run-start snapshot + the current task's baseline tree (JSON)
     ├── run-diff.patch               # unified diff of agent edits across the run
     ├── review-log.jsonl             # [manual] sign-off chain written by zurdo review
     ├── iterations/
@@ -104,7 +104,7 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
 
 Every agent invocation leaves a full audit trail: the exact prompt sent (`.prompt`), and the agent's stdout/stderr (`.out`/`.err`), per task and attempt.
 
-Two directories are **repository-scoped** rather than per-PRD: `.zurdo/lumen/` (the optional [Lumen structural index](lumen.md) behind the experimental structural hints) and `.zurdo/reason/library/` (the [cross-run lesson library](reason.md) — lessons learned on one PRD benefit every other PRD in the repo). `zurdo run --reset` archives only the slug's state; both repo-scoped stores survive it.
+Two directories are **repository-scoped** rather than per-PRD: `.zurdo/lumen/` (the optional [Lumen structural index](lumen.md) behind structural hints) and `.zurdo/reason/library/` (the [cross-run lesson library](reason.md) — lessons learned on one PRD benefit every other PRD in the repo). `zurdo run --reset` archives only the slug's state; both repo-scoped stores survive it.
 
 <div class="callout callout--info" markdown="1">
 **Note** Add `.zurdo/` to your `.gitignore`. Zurdo prints a one-time hint if you forget — but it never modifies your `.gitignore` itself.
@@ -116,11 +116,15 @@ Verifying is only half the story — v1.2.0 added machinery to show **where the 
 
 **Baseline capture.** Before the first task is evaluated, `zurdo run` snapshots the working tree as you handed it over — tracked, modified, and untracked files alike — recording a git tree hash, a `dirty` flag, and capture metadata at `.zurdo/<slug>/baseline`. The capture never touches your git state (it stages into a scratch index via `GIT_INDEX_FILE`, leaving `.git/index` and the reflog byte-for-byte unchanged), and at run end the full patch of what the run changed lands at `.zurdo/<slug>/run-diff.patch`. Outside a git repo, or with no usable `git` on `PATH`, capture degrades to a single warning and the run proceeds normally.
 
-**Pre-flight provenance.** A criterion that was already green in the pre-flight snapshot is flagged in live progress with the tail `already passed at pre-flight — proves nothing about this run`, and the summary table carries a `passed-at-preflight` tally. This is provenance, not policy — exit codes and statuses are unaffected; legitimate cases exist (resumed runs, idempotent re-runs, criteria a dependency already satisfied). The point is that a human reading the report can weigh the evidence.
+**Pre-flight provenance.** A criterion that was already green in the pre-flight snapshot is flagged in live progress with the tail `already passed at pre-flight — proves nothing about this run`, and the summary table carries a `passed-at-preflight` tally. Since v1.13.0 a task that reaches terminal `passed` with **zero attempts** is additionally named in a run-end `warning:` line — see [When a task passes without doing anything](usage.md#when-a-task-passes-without-doing-anything). This is provenance, not policy — exit codes and statuses are unaffected; legitimate cases exist (resumed runs, idempotent re-runs, criteria a dependency already satisfied). The point is that a human reading the report can weigh the evidence.
 
 **Evidence-modified warnings.** When files that hints rely on as evidence have changed since the baseline, zurdo emits a `warning:` diagnostic and continues — a warning, never a failure, since often the task *is* "edit that file". `shell:` and `http:` payloads are treated as opaque (they may reference unbounded external state), so for them the flag signals a detected discrepancy without claiming the criterion is invalid.
 
-**Frozen paths.** The enforcement tier: globs declared per task (`**Frozen**` metadata) or run-wide (`[verification] protected_paths` config) name files the agent must not touch. Any frozen path in the run diff fails the iteration regardless of criteria results, and the next prompt opens with a `# Frozen Path Violation` section requiring the revert. Honest limit: the baseline lives under `.zurdo/`, inside the agent's writable scope — the guard is tamper-evident, not tamper-proof, backstopped by criteria being independently re-run.
+**Frozen paths.** The enforcement tier: globs declared per task (`**Frozen**` metadata) or run-wide (`[verification] protected_paths` config) name files the agent must not touch. Any frozen path in the diff fails the iteration regardless of criteria results, and the next prompt opens with a `# Frozen Path Violation` section requiring the revert.
+
+The diff is **per task** (v1.8.0): each task's baseline is captured at its *first attempt* and reused across its retries, so a task is never charged for edits an earlier task legitimately made, and an agent's own illegal edit on attempt 1 stays visible on attempt 2. The run-start tree is still retained in the same `baseline` file for the review TUI and run-end reporting. Comparison is **tree-to-tree** (v1.13.1), so **untracked paths count in both directions**: a frozen glob naming a file that was untracked at capture time no longer reports as modified on every iteration, and a file the run *created* and never staged no longer escapes the check. Neither side of the comparison touches `.git/index`, so staged work survives a run unchanged — and `run-diff.patch` gains the same symmetry, so files the run created now appear in it and in what `zurdo review` shows.
+
+Honest limit: the baseline lives under `.zurdo/`, inside the agent's writable scope — the guard is tamper-evident, not tamper-proof, backstopped by criteria being independently re-run.
 
 ## Resume, locks, and recovery
 

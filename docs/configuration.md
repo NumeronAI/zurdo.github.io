@@ -45,7 +45,7 @@ high   = "gpt-5.5"
 
 [effort_map.copilot]                # `auto` lets the Copilot CLI pick the model
 low    = "auto"                      # concrete dotted ids (e.g. claude-sonnet-4.6)
-medium = "auto"                      # are plan-gated; probe with `zurdo check-models`
+medium = "auto"                      # are plan-gated; probe with `zurdo doctor`
 high   = "auto"
 
 [defaults]
@@ -71,13 +71,12 @@ cli        = "copilot"
 extra_args = []
 
 [lumen]                           # structural code index — off by default
-enabled          = false
+enabled          = false          # also the only gate on structural hints
 languages        = ["rust", "python", "go", "typescript", "javascript"]
 max_file_bytes   = 2097152
 gc_grace_minutes = 10
 
-[experimental]                    # feature gates — all default false
-structural_hints = false          # requires [lumen] enabled = true
+[experimental]                    # no gate currently lives here; kept for future opt-ins
 
 [vela]                            # background index watcher — off by default
 enabled = false
@@ -104,7 +103,7 @@ gnarly  = "claude-opus-4-7"
 
 With that map, `**Effort**: gnarly` is valid and `**Effort**: medium` is rejected at pre-flight. The default config defines `low | medium | high` for all three providers, so most users never think about this.
 
-Before a run, zurdo probes each mapped model against its provider CLI (the *model probe*); an unknown or plan-gated model fails pre-flight with exit `4`. Check without running via `zurdo check-models`, or bypass with `--skip-model-check`. See [Providers](providers.md).
+Before a run, zurdo probes each mapped model against its provider CLI (the *model probe*); an unknown or plan-gated model fails pre-flight with exit `4`. Check without running via [`zurdo doctor`](commands.md#zurdo-doctor--diagnose-the-environment), or bypass with `--skip-model-check`. See [Providers](providers.md).
 
 ## Defaults and timeouts
 
@@ -130,7 +129,7 @@ An optional `[verification]` table declares run-wide **frozen globs** — paths 
 protected_paths = ["Cargo.lock", "docs/**/*.md"]
 ```
 
-These are enforced in union with each task's `**Frozen**` metadata: after every iteration, any protected path appearing in the diff against the run-start baseline fails the iteration regardless of criteria results. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, negation is not supported. Enforcement requires the baseline capture, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
+These are enforced in union with each task's `**Frozen**` metadata: after every iteration, any protected path appearing in the diff against that task's baseline (captured at its first attempt, reused across retries) fails the iteration regardless of criteria results. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, negation is not supported. Enforcement requires the baseline capture, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
 
 ## Skills search paths
 
@@ -149,12 +148,12 @@ Zurdo checks these at pre-flight (warn-only if a named skill is missing) but nev
 
 | Key                       | Meaning                                                          | Default |
 | ------------------------- | ----------------------------------------------------------------- | ------- |
-| `lumen.enabled`           | Build and maintain the index.                                    | `false` |
+| `lumen.enabled`           | Build and maintain the index — **and** the sole gate allowing `[symbol:]`/`[references:]`/`[callers:]` hints in a PRD. | `false` |
 | `lumen.languages`         | Languages indexed. Recognized: `rust`, `python`, `go`, `typescript`, `javascript`. | all five |
 | `lumen.max_file_bytes`    | Files larger than this are skipped.                              | `2097152` |
 | `lumen.gc_grace_minutes`  | Index generations older than this window become GC-eligible.     | `10`    |
 
-The experimental `[symbol:]`/`[references:]`/`[callers:]` hint types additionally require the `[experimental] structural_hints = true` gate; setting the gate while `lumen.enabled = false` is a config-load error. A PRD with no structural hints never touches the index. The full subsystem — index lifecycle, per-language capabilities, `zurdo lumen` CLI — is on [Structural verification](lumen.md).
+Since **v1.9.0** `lumen.enabled` is the *only* switch the `[symbol:]`/`[references:]`/`[callers:]` hint types need — the old `[experimental] structural_hints` gate is deprecated and ignored (it still parses, so pre-1.9 configs keep loading, but it warns on stderr and decides nothing). A PRD with no structural hints never touches the index. The full subsystem — index lifecycle, per-language capabilities, `zurdo lumen` CLI — is on [Structural verification](lumen.md).
 
 ## The Vela watcher
 

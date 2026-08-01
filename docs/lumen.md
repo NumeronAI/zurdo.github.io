@@ -27,23 +27,24 @@ A `[grep:]` hint proves a string exists; it cannot prove the string is *code*. `
 
 Three pieces make it work, and this page covers all of them:
 
-- The three **structural hint types** — `[symbol:]`, `[references:]`, `[callers:]` (grammar on the [Hints reference](hints.md#structural-hints-experimental)).
+- The three **structural hint types** — `[symbol:]`, `[references:]`, `[callers:]` (grammar on the [Hints reference](hints.md#structural-hints)).
 - **Lumen** — the persistent, repository-scoped code index at `.zurdo/lumen/` that hint resolution queries.
 - **Vela** — an optional background watcher that keeps the index fresh between runs. Never required for correctness.
 
-The subsystem is **experimental and opt-in**: the grammar is stable, but everything sits behind two config gates and is off by default.
+The subsystem is **opt-in and off by default**, behind a single config switch. It is no longer experimental: structural hints graduated in **v1.9.0** after every hint type had dogfood coverage across three PRDs and the v1.4.0 syntax and schema soaked unchanged through three further releases.
 
 ## Turning it on
 
 ```toml
 [lumen]
-enabled = true            # build and maintain the index
-
-[experimental]
-structural_hints = true   # allow [symbol:]/[references:]/[callers:] in PRDs
+enabled = true            # build the index — and allow [symbol:]/[references:]/[callers:]
 ```
 
-The gates compose strictly: `structural_hints = true` while `lumen.enabled = false` is a **config-load error**, and a structural hint in a PRD while the gate is off is a **validation error** naming the disabled gate — `zurdo validate`, `zurdo analyze`, `run`, and `--resume` all enforce it identically. The full `[lumen]` key table is on the [Configuration](configuration.md#lumen-and-structural-hints) page.
+That's the whole gate. A structural hint in a PRD while Lumen is off is a **validation error** naming the one key to set (`… structural hint requires lumen.enabled = true in .zurdo/config.toml`) — `zurdo validate`, `zurdo analyze`, `run`, and `--resume` all enforce it identically. The full `[lumen]` key table is on the [Configuration](configuration.md#lumen-and-structural-hints) page.
+
+<div class="callout callout--info" markdown="1">
+**Upgrading from ≤ 1.8?** The second gate is gone. `[experimental] structural_hints` is deprecated and **ignored** — configs carrying it still load, but the key decides nothing and emits `warning: '[experimental] structural_hints' is deprecated and ignored; structural hints are governed by '[lumen] enabled'` at config load. `structural_hints = true` with `lumen.enabled = false` used to be a config-load error; with nothing left to contradict, that config now simply loads and Lumen governs. `zurdo init` writes an empty `[experimental]` table.
+</div>
 
 ## What each hint proves
 
@@ -146,8 +147,8 @@ Two caveats to author around: a hint on a construct the adapter doesn't map (a R
 
 | Symptom                                                       | Cause                                                             | Fix                                                                    |
 | ------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| Validation error naming `experimental.structural_hints`       | The PRD uses a structural hint while the gate is off.             | Enable **both** `[lumen] enabled` and `[experimental] structural_hints`. |
-| Config-load error mentioning `lumen.enabled`                  | `structural_hints = true` with `lumen.enabled = false`.           | Enable `[lumen]` too — the gate can't stand alone.                     |
+| Validation error: *structural hint requires `lumen.enabled = true`* | The PRD uses a structural hint while Lumen is off.          | Set `[lumen] enabled = true`. That is the only gate since v1.9.0.      |
+| `warning: '[experimental] structural_hints' is deprecated and ignored` | A pre-1.9 config still carries the retired second gate.   | Delete the key. `[lumen] enabled` alone governs structural hints.      |
 | Pre-flight fails with a non-ready index                       | A working-tree file Lumen needed could not be (re)parsed.         | `zurdo lumen rebuild`, then re-run. The failure is deliberate — before tokens, never a silent criterion failure. |
 | `[symbol:]` fails "wrong kind"                                | The diagnostic names the kind actually found.                     | Fix the kind in the hint (`struct` vs `type` is the usual culprit).    |
 | `[callers:]` fails `binding_unresolved` though the call is there | The call site doesn't statically import the target, or the callee needs receiver-type inference. | Bind through a static import, or fall back to `[grep:]`/`[shell:]` for that relationship. |
