@@ -20,8 +20,13 @@
 	}
 
 	strong {
-		display: block;
 		color: $color-dark;
+	}
+
+	/* Only the leading bold phrase is the callout title; bold text later in
+	   the body stays inline. */
+	p > strong:first-child {
+		display: block;
 		font-family: $font-family-secondary;
 		font-size: 1.133em;
 		font-weight: 500;

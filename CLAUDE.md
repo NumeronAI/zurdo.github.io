@@ -12,7 +12,7 @@ Plain Jekyll site using the GitHub Pages legacy branch build — pushes to `main
 
 - `index.md` — landing page (`layout: homepage`: hero + grid navigation in front matter, pitch/quickstart in the body)
 - `docs/*.md` — documentation pages (how-it-works, installation, usage, effective-use, writing-prds, hints, commands, configuration, providers, roadmap); each uses `layout: default` with hero `title`/`description`, `micro_nav`, and a `page_nav` prev/next chain in front matter
-- `doks-theme/` — the vendored Doks theme (ThemeForest): `_layouts`, `_includes`, `_sass`, `assets`. Local edits: `homepage.html` also renders `{{ content }}`, `site-head.html` uses `{% seo %}`, `site-footer.html` loads mermaid when a page sets `mermaid: true`
+- `doks-theme/` — the vendored Doks theme (ThemeForest): `_layouts`, `_includes`, `_sass`, `assets`. Local edits: `homepage.html` also renders `{{ content }}` (in a centered `col-md-8 col-md-offset-2` column), `_callout.scss` makes only a callout's leading bold phrase a block title, `site-head.html` uses `{% seo %}`, `site-footer.html` loads mermaid when a page sets `mermaid: true`
 - `_config.yml` — `layouts_dir`/`includes_dir`/`sass_dir` point into `doks-theme/`; `doks:` block holds header nav, footer, color theme; empty `baseurl` (custom domain serves from root); `jekyll-relative-links`
 - `CNAME` — the custom domain; deleting it detaches the domain from Pages
 
