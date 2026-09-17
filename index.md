@@ -74,7 +74,7 @@ grid_navigation:
 ---
 
 <div class="callout callout--info" markdown="1">
-**Version** This documentation describes **zurdo v1.13.1**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
+**Version** This documentation describes **zurdo v1.21.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
 </div>
 
 ## Why zurdo

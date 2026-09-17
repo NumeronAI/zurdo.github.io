@@ -20,7 +20,7 @@ page_nav:
         url: '/docs/configuration.html'
 ---
 
-The complete CLI surface as of zurdo v1.13.1. Every subcommand carries extensive built-in help — `zurdo <subcommand> --help` describes its modes, load-bearing exit codes, and examples — and `zurdo help <topic>` prints offline [guide pages](#zurdo-help--guide-pages-in-the-terminal) right in the terminal. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
+The complete CLI surface as of zurdo v1.21.0. Every subcommand carries extensive built-in help — `zurdo <subcommand> --help` describes its modes, load-bearing exit codes, and examples — and `zurdo help <topic>` prints offline [guide pages](#zurdo-help--guide-pages-in-the-terminal) right in the terminal. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
 
 ## Subcommands
 
@@ -28,21 +28,21 @@ The complete CLI surface as of zurdo v1.13.1. Every subcommand carries extensive
 | ----------------------------- | ----------------------------------------------------------------------------------------------- |
 | `zurdo init`                  | Write a default `.zurdo/config.toml` (with comments) and install bundled skills to the provider discovery path |
 | `zurdo run <prd>`             | Drive the PRD through the agent loop. Default when no subcommand is given with a positional PRD |
-| `zurdo validate <prd>`        | Deterministic grammar + dep-graph checks; no LLM, no execution. `--strict` promotes advisory lints to errors, `--format json` emits a parseable envelope ([details](#machine-readable-output)). (Skill existence is checked at run pre-flight, not here) |
+| `zurdo validate <prd>`        | Deterministic grammar + dep-graph checks; no LLM, no execution. `--strict` promotes advisory lints to errors, `--format json` emits a parseable envelope ([details](#machine-readable-output)), `--authoring-state` / `--at <rev>` validate an already-shipped PRD against the tree it was written for ([details](#zurdo-validate---authoring-state)). (Skill existence is checked at run pre-flight, not here) |
 | `zurdo doctor`                | Diagnose why a run won't start — config, providers, `PATH`, model probes, git/state, Lumen — with no PRD, no lock, and nothing written ([details](#zurdo-doctor--diagnose-the-environment)) |
 | `zurdo analyze <prd>`         | Full pre-flight analysis of the PRD itself — deterministic lints plus an LLM critique — and exit without executing anything ([details](#zurdo-analyze--pre-flight-analysis)) |
 | `zurdo heal <prd>`            | Re-aim misaimed `[grep:]`/`[no-grep:]` hints using a prior run's failure history ([details](#zurdo-heal--re-aim-misaimed-grep-hints)) |
 | `zurdo review <prd>`          | Interactive TUI over a prior run's evidence: task statuses, per-criterion provenance, the baseline diff, and in-band `[manual]` sign-off ([details](#zurdo-review--walk-the-evidence-sign-off-manual-criteria)) |
 | `zurdo verify <prd>`          | Re-run every terminal task's criteria against the current working tree, without invoking the executor. `--format json` supported |
-| `zurdo report <prd>`          | Build a curated run report from `prd.json` (`--format json` default, `--format md` supported)   |
-| `zurdo state list`            | List every `.zurdo/<slug>/` state directory at the repo root. `--format json` supported          |
+| `zurdo report <prd>`          | Build a curated run report from `prd.json` (`--format json` default, `--format md` supported), including the [completion gate](usage.md#the-completion-gate) verdict when one ran |
+| `zurdo state list`            | List every `.zurdo/<slug>/` state directory at the repo root, with a `gate` column for the completion-gate verdict. `--format json` supported |
 | `zurdo state where <prd>`     | Print the absolute `.zurdo/<slug>/` path a PRD resolves to (the directory need not exist)       |
-| `zurdo skills list`           | List bundled skills compiled into the binary                                                    |
+| `zurdo skills list`           | List the seven [bundled skills](how-it-works.md#skills) compiled into the binary                 |
 | `zurdo skills install <name>` | Install a bundled skill directly into the provider discovery path                               |
 | `zurdo check-models`          | **Deprecated since v1.9.0** — use `zurdo doctor`, whose `models` section probes the same rows and adds the vocabulary canary. Retained through 1.x with identical behavior and exit codes; prints one stderr deprecation line per invocation |
 | `zurdo reason match <prd>`    | Preview which [library lessons](reason.md) would match each task of a PRD — read-only, never updates lesson stats |
-| `zurdo reason status`         | Lesson-library count (grouped by match key) plus per-slug diagnosis-block counts                |
-| `zurdo reason clear`          | Delete the lesson library. Confirms on a TTY; `--yes` for non-interactive use                   |
+| `zurdo reason status`         | Lesson-library count (grouped by match key), one line per lesson file that failed to parse, plus per-slug diagnosis-block counts |
+| `zurdo reason clear`          | Delete the lesson **usage** sidecar (`.zurdo/reason/usage.json`). The git-tracked `lessons/` files are left alone — retire one with `git rm`. Confirms on a TTY; `--yes` for non-interactive use |
 | `zurdo lumen status`          | Report the [structural index](lumen.md)'s state (and the Vela watcher's, when configured)       |
 | `zurdo lumen rebuild`         | Rebuild the structural index from scratch                                                       |
 | `zurdo lumen clear`           | Delete `.zurdo/lumen/`. Confirms on a TTY; `--yes` for non-interactive use                      |
@@ -88,7 +88,7 @@ Exit `0` when everything passed or only advisories were reported; exit `2` when 
 
 | Command      | `command` value | `data` payload                                                                                     |
 | ------------ | --------------- | ---------------------------------------------------------------------------------------------------- |
-| `validate`   | `validate`      | `{ok, errors[], warnings[]}` — each warning names its [lint family](hints.md#the-six-warn-lint-families) |
+| `validate`   | `validate`      | `{ok, errors[], warnings[]}` — each warning names its [lint family](hints.md#the-warn-lint-families) |
 | `verify`     | `verify`        | `{terminal_checked, changes[]}` — an empty `changes` array *is* the no-regressions case, so the shape never branches |
 | `state list` | `state-list`    | `{entries[]}` — a repo with no runs parses identically to one with runs, instead of emitting prose  |
 
@@ -98,12 +98,24 @@ In JSON mode stdout is a single document and diagnostics stay on stderr; a parse
 
 ## `zurdo validate --strict`
 
-`--strict` (v1.12.0) promotes four of the six warn-lint families — `grep-target`, `vacuous-shell`, `grep-tautology`, `uncovered-requirement` — to validation errors, so a PRD that would otherwise pass with warnings exits `2`, the same code a structural error produces. Two families are exempt:
+`--strict` promotes six of the ten [warn-lint families](hints.md#the-warn-lint-families) — `grep-target`, `vacuous-shell`, `grep-tautology`, `frozen-overlap`, `doc-echo`, `uncovered-requirement` — to validation errors, so a PRD that would otherwise pass with warnings exits `2`, the same code a structural error produces. Four families are exempt, for three different reasons:
 
 - **`skill-resolution`** — permanently. PRD-referenced skills are user-managed, so a CI checkout legitimately lacks them; promoting this family would fail every strict run for a non-defect.
-- **`doc-echo`** — pending field data on its false-positive rate. It asserts a judgment about authorial intent, not a provable fact about the PRD.
+- **`discarded-evidence`** and **`cached-verification`** (v1.18.0) — pending field data. `doc-echo` sat in this state until v1.16.0 promoted it.
+- **`unaddressed-lesson`** (v1.21.0) — never. The obligations it checks come from *your* repository's lesson library, so no measurement elsewhere could justify making it build-breaking. It is also emitted only by `zurdo analyze`, never by `validate`.
 
 It composes with `--format json`: a promoted finding moves from the `warnings` array to `errors`, and `ok` goes `false`. Without the flag every family stays advisory and a PRD with warnings still exits `0`.
+
+## `zurdo validate --authoring-state`
+
+Validating a PRD whose work has already shipped is misleading: every `[grep:]` and `[no-grep:]` hint already reads green against `HEAD`, so `grep-tautology` fires on all of them — an artifact of the tree, not a defect in the PRD. `--authoring-state` (v1.15.0) validates the PRD **as it was when it was written**: zurdo finds the commit that added the PRD (following renames) and checks that commit's text against its first parent. `--at <rev>` names the commit explicitly instead.
+
+```sh
+zurdo validate prds/feature.md --authoring-state   # the commit that added the PRD
+zurdo validate prds/feature.md --at 3f1d61b        # an explicit revision
+```
+
+The two flags are mutually exclusive. Because the reconstruction reports on the *committed* PRD, not the file on disk, both output formats name the resolved commit and baseline whenever either flag is used (`revision` in the JSON payload). This is how zurdo's own maintainers measure lint false-positive rates — on zurdo's own PRD corpus it cut total findings from 929 to 94.
 
 ## `zurdo analyze` — pre-flight analysis
 
@@ -111,11 +123,11 @@ It composes with `--format json`: a promoted finding moves from the `warnings` a
 
 | Invocation                          | What it does                                                                                   |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `zurdo analyze <prd>`               | Full analysis: deterministic lints (vacuous shells, grep tautologies, frozen-path overlaps, uncovered requirements) plus an LLM critique of vague criteria. Requires `[roles.analyzer]` |
-| `zurdo analyze <prd> --static-only` | Deterministic lints only — no LLM invocation, no `[roles.analyzer]` needed. The CI-friendly instant pass |
+| `zurdo analyze <prd>`               | Full analysis: every deterministic [lint family](hints.md#the-warn-lint-families) — including `unaddressed-lesson`, which only `analyze` emits — plus an LLM critique of vague criteria. Requires `[roles.analyzer]` |
+| `zurdo analyze <prd> --static-only` | Deterministic lints only — no LLM invocation, no `[roles.analyzer]` needed, and (since v1.18.0) no `.zurdo/config.toml` needed either: an absent config falls back to the defaults `zurdo init` would write. The CI-friendly instant pass |
 | `zurdo analyze <prd> --fix`         | Iterative refinement loop: the analyzer proposes a tightened PRD, zurdo re-analyzes, repeat until warnings stop decreasing. Writes `<prd>.proposed.md` and asks before overwriting            |
 
-`--static-only` conflicts with `--fix` (the fix loop is LLM-driven). `--max-iterations N` caps the `--fix` refinement loop — same spelling as `run`'s flag, but here it means the refinement-loop cap, and `0` is a flag error under `--fix`.
+`--static-only` conflicts with `--fix` (the fix loop is LLM-driven). Its missing-config carve-out covers absence only: a `config.toml` that exists but fails to parse still exits `2`, and a full `analyze` pass still requires a config. `--max-iterations N` caps the `--fix` refinement loop — same spelling as `run`'s flag, but here it means the refinement-loop cap, and `0` is a flag error under `--fix`.
 
 ## `zurdo heal` — re-aim misaimed grep hints
 
@@ -177,7 +189,9 @@ The pre-v1.7.0 mode flags `--analyze`, `--fix`, `--static-only`, and `--heal` st
 
 | Flag                    | Effect                                                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| `--strict`              | Promote the four promotable warn-lint families to validation errors (exit `2`). See [above](#zurdo-validate---strict). |
+| `--strict`              | Promote the six promotable warn-lint families to validation errors (exit `2`). See [above](#zurdo-validate---strict). |
+| `--authoring-state`     | Validate the PRD as committed, against the parent of the commit that added it. See [above](#zurdo-validate---authoring-state). |
+| `--at <rev>`            | Like `--authoring-state`, but at an explicit revision. Mutually exclusive with `--authoring-state`. |
 | `--format <text\|json>` | `json` emits the shared versioned envelope on stdout. Rendering only — the exit code is unchanged. Default `text`. |
 | `--repo-root <path>`    | Override the auto-detected repo root (the nearest ancestor with `.git`).                              |
 
@@ -246,6 +260,7 @@ zurdo doctor                                # why won't a run start? config, PAT
 zurdo doctor --skip-probes --format json    # offline environment check, parseable
 zurdo validate prds/feature.md              # free, instant grammar check
 zurdo validate prds/feature.md --strict     # advisory lints become errors (CI gate)
+zurdo validate prds/done.md --authoring-state # lint a shipped PRD as it was written
 zurdo analyze prds/feature.md --static-only # lint hints without an LLM
 zurdo run prds/feature.md                   # the main event
 zurdo run prds/feature.md --resume          # continue after Ctrl-C, no prompt
@@ -265,15 +280,16 @@ zurdo skills install --all --all-providers  # every bundled skill, every provide
 | ---- | -------------------------------------------------------------------------------------------- |
 | `0`  | Success                                                                                      |
 | `1`  | General failure (unhandled error)                                                            |
-| `2`  | PRD parse / validation error (grammar errors, analyze findings, a `--strict` promoted warning; `heal`'s input PRD or missing/invalid config; `doctor`'s missing/unloadable config). Also: `review` on a non-interactive terminal, and an unknown `zurdo help` topic |
-| `3`  | Pre-flight failure (missing config, missing CLI on PATH, lock held; for `heal` and `review`: missing `prd.json`; for `heal`: missing `[roles.analyzer]`) |
-| `4`  | State mismatch requiring `--reset` (a `prd_hash` mismatch with no valid heal-log chain to reconcile), the pre-flight model probe rejected a model, or `doctor` reported a blocking finding |
+| `2`  | PRD parse / validation error (grammar errors, analyze findings, a `--strict` promoted warning, `heal`'s input PRD), or a missing / invalid `.zurdo/config.toml` — except that `analyze --static-only` tolerates an *absent* config. Also: `review` on a non-interactive terminal, and an unknown `zurdo help` topic |
+| `3`  | Pre-flight failure (missing CLI on PATH, lock held; for `heal` and `review`: missing `prd.json`; for `heal` and `analyze --fix`: missing `[roles.analyzer]`). A missing config is **not** this class — it exits `2` |
+| `4`  | State mismatch requiring `--reset` (a `prd_hash` mismatch with no valid heal-log chain to reconcile); no run state yet (`report`, `verify`); the pre-flight model probe rejected a model; or `doctor` reported a blocking finding |
 | `5`  | One or more tasks finished `failed` or `blocked-by-dependency`                               |
 | `6`  | Iteration budget exhausted (`--max-iterations`, incl. under `analyze --fix`)                 |
 | `7`  | `analyze --fix` thrash detected (warning count non-decreasing across the last 3 iterations)  |
 | `8`  | `analyze --fix` halted — the LLM produced an unparseable PRD; last-good iteration preserved  |
+| `9`  | Every task passed, but the run-end [completion gate](usage.md#the-completion-gate) failed or timed out (v1.21.0) |
 
-CI wrappers can branch cleanly on `5` (real failure) vs `6` (budget) vs `7`/`8` (analyze-fix didn't converge) — see the [CI integration example](usage.md#ci-integration). The same table ships in the binary: `zurdo help exit-codes`.
+CI wrappers can branch cleanly on `5` (a task failed) vs `9` (every task passed, the repository is still broken) vs `6` (budget) vs `7`/`8` (analyze-fix didn't converge) — see the [CI integration example](usage.md#ci-integration). The same table ships in the binary: `zurdo help exit-codes`.
 
 <div class="callout callout--warning" markdown="1">
 **Changed in v1.10.0** `zurdo validate` and `zurdo verify` now exit `2` rather than `1` on a PRD parse failure or a structural validation error, matching the meaning `2` has always carried elsewhere. A CI wrapper that distinguishes the two codes will observe this; one checking `!= 0` is unaffected.

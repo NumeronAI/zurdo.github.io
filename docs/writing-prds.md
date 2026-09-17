@@ -165,15 +165,55 @@ The rules, all machine-checked:
 - **Placement.** `### Requirements`, when present, must appear **before** `### Description`.
 - **Id shape and uniqueness.** `req-id` matches `^req-[a-z0-9-]+$` and must be unique within the task — duplicates are validation errors.
 - **Dangling references are `validate` errors.** Every `[proves:<req-id>]` must reference a requirement declared in the same task's block.
-- **Uncovered requirements are `zurdo analyze` warnings.** A declared requirement no criterion proves is surfaced by analysis, not by `validate`.
+- **Uncovered requirements are warnings.** A declared requirement no criterion proves is an `uncovered-requirement` warning from both `zurdo validate` and `zurdo analyze` — and an error under `validate --strict`.
 
 `[proves:]` is a modifier, not a hint — it runs no check and never gates the criterion. Place it after all hint blocks on the line. Criteria without it are valid (they still gate the task, just untraced), and multiple criteria may prove the same requirement.
 
-## Authoring with the bundled skill
+## Pre-authored tests
+
+A criterion like `[shell: cargo test login_rejects_missing_password]` is only as honest as the test it runs — and if the agent writing the feature also writes that test, it controls both sides. A **pre-authored test** (the convention `zurdo-prd-author` teaches since v1.17.0) closes that gap: you write the test **before** the run and commit it with the PRD, so the agent can only make it pass.
+
+The test has to be committed in a way that doesn't run yet, or CI goes red on the PRD commit. Rust shape:
+
+```markdown
+### Description
+
+<…the work…>
+
+The tests marked `#[ignore = "pre-authored: task-03"]` in `tests/preauthored_task_03.rs`
+are evidence, not scratch. Do not delete them or weaken their assertions. The only edit
+this task may make to that file is removing the `#[ignore …]` attribute.
+
+### Acceptance Criteria
+
+- [ ] login rejects a missing password [shell: cargo test -- --include-ignored login_rejects_missing_password]
+- [ ] no pre-authored test for this task is still ignored [no-grep: #\x5bignore in tests/preauthored_task_03.rs]
+```
+
+The load-bearing details:
+
+- **The reason string** `#[ignore = "pre-authored: <task-id>"]` marks the test as waiting for a task, not permanently quarantined.
+- **`-- --include-ignored`, never `--ignored`.** `--ignored` runs *only* ignored tests, so once the agent correctly removes the attribute the filter matches nothing and the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails) fails the criterion.
+- **The `[no-grep:]` guard** forces the marker's removal. It uses `#\x5b` (a literal `[`) because the hint tokenizer rejects an unclosed `[` inside a hint (the readable spelling fails validation), and the prefix match has to catch both the marked and a bare `#[ignore]`. Don't spell the attribute in a comment in that file — the guard would match it forever.
+- **One file per task**, since the guard is file-scoped. The Description paragraph goes in the task's `### Description`; the PRD preamble never reaches the executor.
+- **Commit a signature stub** (`todo!()`) for any function the test calls that doesn't exist yet — `#[ignore]` stops a test running, not compiling.
+
+Go uses a build tag instead: `//go:build preauthored` on a dedicated `_test.go` file, a hint like `[shell: go test -tags=preauthored -run '^TestX$' -count=1 ./...]`, and a `[no-grep: //go:build preauthored in …]` guard. `-count=1` is mandatory (Go caches passes — the [`cached-verification`](hints.md#the-warn-lint-families) lint flags its absence), and `t.Skip()` is off-limits because a skipped test is a passing package.
+
+Before committing the PRD, run the hint yourself: it must fail, and fail **on an assertion** (or a `todo!()` panic) — not on a compile error, and not on a zero-test demotion. Where a test genuinely can't come first, say why in the task's `.trail.md`.
+
+## Authoring with the bundled skills
 
 If your agent provider is set up, the bundled `zurdo-prd-author` skill turns PRD authoring into a guided, evidence-first interview — it drafts the acceptance criteria first, derives tasks from them, then renders the grammar — and pressure-tests every criterion until its hint actually verifies. `zurdo init` installs it; invoke it from your agent CLI like any other skill.
 
-Alongside the PRD it writes a `<prd-name>.trail.md` **reasoning sidecar** — a record of why each decision was made, never parsed by zurdo — which the `zurdo-hint-debugger` skill reads later when a criterion fails. And in a repo whose past runs have built up a [lesson library](reason.md), the pressure-test phase consults it read-only, folding known repo quirks into the criteria before they can cost a run.
+Alongside the PRD it writes a `<prd-name>.trail.md` **reasoning sidecar** — a record of why each decision was made, never parsed by zurdo — which the `zurdo-hint-debugger` skill reads later when a criterion fails. In a repo with a [lesson library](reason.md), the pressure-test phase consults it read-only, folding known repo quirks into the criteria before they can cost a run — and when the interview settles a correction worth remembering, the skill writes it as a new `lessons/lesson-<hash8>.md` file to commit alongside the PRD.
+
+Two more skills bracket it:
+
+- **Before:** `zurdo-design-author` (v1.20.0) is for work too big for one PRD. It produces a `docs/design/<topic>.md` record — alternatives considered and rejected, phases with observable exit criteria — and every claim marked new must carry a measured number.
+- **After:** `zurdo-prd-review` (v1.17.0) reads a finished run's diff against what each task *meant* and, if anything is missing or drifted, scaffolds a follow-up PRD rather than editing the original. See [Skills](how-it-works.md#skills).
+
+If a lesson says every PRD touching some area must include a particular check, it can carry an [obligation](reason.md#obligations-lessons-that-bind-future-prds); `zurdo analyze` then warns about any PRD that leaves the check out.
 
 ## Validate early, analyze before you spend
 
@@ -182,6 +222,6 @@ zurdo validate prds/feature.md              # deterministic grammar + dep-graph 
 zurdo analyze prds/feature.md               # + hint lints and LLM critique
 ```
 
-`validate` catches structural errors instantly and for free. `zurdo analyze` additionally flags hints that prove nothing (see [Hints reference](hints.md#beware-vacuous-hints-and-tautologies)) and criteria too vague to verify — before any tokens are spent on a run.
+`validate` catches structural errors instantly and for free, along with nine of the ten [lint families](hints.md#the-warn-lint-families); add `--strict` to make the six promotable ones errors. `zurdo analyze` additionally checks lesson obligations and flags hints that prove nothing (see [Hints reference](hints.md#beware-vacuous-hints-and-tautologies)) and criteria too vague to verify — before any tokens are spent on a run.
 
 Next: [Hints reference](hints.md)

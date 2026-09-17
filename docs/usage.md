@@ -79,6 +79,9 @@ sequenceDiagram
             end
         end
     end
+    opt completion_command configured
+        Z->>W: run the completion gate once
+    end
     Z-->>You: summary table · report · run-diff.patch
 ```
 
@@ -86,7 +89,7 @@ sequenceDiagram
 
 ```
 ═══════════════════════════════════════════════════════════
-  Zurdo v1.13.1
+  Zurdo v1.21.0
   PRD:      prds/auth.md
   Slug:     auth-a1b2
   Executor: anthropic (effort_map: low=claude-haiku-4-5,
@@ -140,6 +143,19 @@ warning: 3 tasks passed at pre-flight without any agent work — task-json, task
 
 If **every** task passed that way the wording escalates to "Nothing ran. Either this PRD is already complete, or its criteria do not verify the work it describes." The list elides after ten task names. The warning is purely diagnostic — it never changes the exit code — and it stays silent on a resume, where passing at pre-flight is the expected shape. Its companion guard is the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails) on `[shell:]` hints.
 
+### The completion gate
+
+If `.zurdo/config.toml` sets [`[verification] completion_command`](configuration.md#the-completion-gate), a run whose tasks all ended `passed` or `passed-pending-review` finishes with one more step: zurdo runs that command once against the finished tree.
+
+```toml
+[verification]
+completion_command = "cargo test --workspace && cargo clippy --all-targets -- -D warnings"
+```
+
+A passing gate changes nothing. A failing one — or one that runs past `[timeouts] completion_seconds` (default `900`) — makes the run exit **`9`**, and the summary prints the command and its captured output. No task is marked failed: each passed its own criteria, and the gate is reporting on the repository. The verdict is also in `zurdo state list`'s `gate` column and in `zurdo report`.
+
+Use it for the rule every PRD would otherwise have to restate — "the whole suite still passes". Since the gate also runs on `--resume`, fixing the breakage and resuming re-checks the tree.
+
 The progress stream is on stdout; a parallel JSONL event log lands at `.zurdo/<slug>/progress.log` for tooling. Tunables: `--no-progress` silences the stream, `--quiet-agent` drops the live tee of agent output (spinner stays), `--no-color` strips ANSI.
 
 ### Reading the agent as it works
@@ -173,6 +189,8 @@ If you **edited the PRD** since the last run, zurdo refuses with exit `4` (PRD-h
 ```sh
 zurdo verify prds/feature.md
 ```
+
+`verify` re-checks recorded criteria only — it doesn't run the completion gate.
 
 ## Reviewing a run with `zurdo review`
 
@@ -239,6 +257,7 @@ case "$ec" in
   5)    echo "task failure";         exit 1 ;;  # real regression
   6)    echo "budget exhausted";     exit 1 ;;  # bump --max-iterations
   7|8)  echo "analyze-fix non-convergent"; exit 1 ;;
+  9)    echo "tasks passed, completion gate failed"; exit 1 ;;
   *)    echo "unexpected ec=$ec";    exit 1 ;;
 esac
 ```
@@ -249,7 +268,9 @@ Notes:
 - `--no-color` keeps logs grep-friendly in CI's plain-text artifact viewer.
 - `--log-format json` plus `--log-file` gives you a structured diagnostic log alongside the JSONL `progress.log`.
 - **`--format json` on `validate`, `verify`, and `state list`** emits the shared versioned envelope (`{schema_version, command, data}`) — one contract to parse instead of three prose shapes, with diagnostics still on stderr. It changes rendering only; exit codes match text mode. See [Machine-readable output](commands.md#machine-readable-output).
-- **`zurdo validate --strict`** promotes `grep-target`, `vacuous-shell`, `grep-tautology`, and `uncovered-requirement` to errors so weak criteria fail the build rather than scrolling past. `skill-resolution` and `doc-echo` stay advisory by design.
+- **`zurdo validate --strict`** promotes six lint families — `grep-target`, `vacuous-shell`, `grep-tautology`, `frozen-overlap`, `doc-echo`, `uncovered-requirement` — to errors so weak criteria fail the build rather than scrolling past. `skill-resolution`, `discarded-evidence`, and `cached-verification` stay advisory ([why](commands.md#zurdo-validate---strict)).
+- **`zurdo analyze --static-only`** is the other free gate: it adds the lesson-obligation check (`unaddressed-lesson`) and, since v1.18.0, runs even in a checkout with no `.zurdo/config.toml`.
+- **`[verification] completion_command`** turns "the whole suite passes" into exit `9` instead of a criterion every PRD has to repeat.
 - **`zurdo doctor`** is a safe pre-gate: exit `4` only on findings that genuinely stop a run. Use `--skip-probes` to keep it offline and free of provider spawns.
 - Capture `.zurdo/<slug>/reports/*.json` and `.zurdo/<slug>/iterations/*` as build artifacts for post-mortems.
 - Cap spend with `--max-iterations` (global) and per-task `Max-Attempts` (PRD metadata). Exit `6` distinguishes "budget hit" from `5` ("a task actually failed"), so dashboards can split flakes from regressions.
@@ -259,7 +280,7 @@ Notes:
 | Symptom                                                            | Cause                                                                            | Fix                                                                                              |
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `lock held by pid <n>` (exit `3`)                                  | Another `zurdo run` (or an open `zurdo review` session) holds the run lock for the same PRD. | Wait for it. If no zurdo is running, the lock is stale and the next run will take it over.        |
-| `state mismatch — pass --reset` (exit `4`)                         | The PRD has changed since the last successful run.                               | If the edits were intentional, run with `--reset` (old state archives under `.zurdo/<slug>/.archive/<ts>/`). |
+| `state mismatch — pass --reset` (exit `4`)                         | The PRD file changed (any byte) since the last successful run.                   | If the edits were intentional, run with `--reset` (old state archives under `.zurdo/<slug>/.archive/<ts>/`). Edits applied by `zurdo heal` are reconciled automatically. |
 | `unknown model anthropic:<x>` (exit `4`)                           | The model under `[effort_map.<provider>]` is unknown or unsupported under your auth. | Probe with `zurdo doctor`, fix the entry, or pass `--skip-model-check`.                          |
 | Run won't start and the message isn't obvious                      | Config, provider block, `PATH`, model, or state problem.                         | `zurdo doctor` — it names the failing check and, where it can, the remedy.                       |
 | `task heading uses hyphen-minus where em-dash required` (exit `2`) | The H2 task heading uses `-` or `–` instead of U+2014 `—`.                       | Insert a real em-dash. macOS: `Option+Shift+-`. Linux Compose key: `Compose - - -`.              |
@@ -271,6 +292,11 @@ Notes:
 | `warning: '[experimental] structural_hints' is deprecated and ignored` | A pre-1.9 config still carries the retired gate.                              | Delete the key; `[lumen] enabled` governs structural hints on its own.                           |
 | Criterion fails with *a test runner ran zero tests*                | A `[shell:]` test command matched no tests — an empty filter, a test never written. | Fix the filter or write the test. This is the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails) refusing a vacuous exit `0`. |
 | Pre-flight fails with a non-ready Lumen index                      | A working-tree file the structural index needed could not be parsed.             | `zurdo lumen rebuild`, then re-run. Slow cold repairs after big changes? Keep the index warm with the [Vela watcher](lumen.md#the-vela-watcher). |
+| Run exits `9` although every task passed                          | The [completion gate](#the-completion-gate) failed or timed out.                  | Read the command output in the run summary (or `zurdo report`), fix the tree, then `zurdo run --resume` — the gate re-runs on resume. Raise `[timeouts] completion_seconds` if it merely ran long. |
+| Criterion fails with *a test runner ran zero tests* although tests exist | Every selected test is `#[ignore]`d (v1.18.0), or the filter matches nothing. | Run the ignored tests explicitly (`-- --include-ignored`) or fix the filter. |
+| `discarded-evidence` / `cached-verification` warning               | A `[shell:]` test hint discards stdout, or runs `go test` without `-count=1`.   | Drop the `>/dev/null`; add `-count=1`. Either shape can let a criterion pass without really testing the current tree. |
+| `reason: library unreadable lessons/<file>.md: …`                  | A lesson file's frontmatter doesn't parse (often a misspelled key).              | Fix the key named in the error; until then the lesson is ignored. The exit code is unaffected. |
+| Lessons from before v1.14 no longer show up                        | The library moved from `.zurdo/reason/library/` to a git-tracked `lessons/` directory, without migration. | Move the lessons you want to keep into `lessons/` — see [Diagnosis & lessons](reason.md#the-library-is-source-not-state). |
 | `task_stalled` in the progress stream; attempts repeat the same failure | The agent is looping on one failure instead of converging.                  | Enable the `[reason]` subsystem so a stall gets a reasoner diagnosis (guide, heal routing, or early halt) — see [Diagnosis & lessons](reason.md). |
 | Criterion passes but proves nothing                                | Hint is too loose (`[shell: true]`, `[file-exists: README.md]`).                 | Tighten the hint. `zurdo analyze` flags many such no-ops as warnings.                            |
 | `[Y/n]` prompts appear in CI logs                                  | Default mode is interactive when stdin happens to be a TTY.                      | Always pass `--no-prompt` in CI (plus `--resume` or `--reset` to declare intent explicitly).     |

@@ -17,39 +17,63 @@ page_nav:
         url: '/docs/providers.html'
 ---
 
-What's moving in zurdo, relative to the released **v1.13.1** these docs describe. Items here are subject to change until they ship.
+What's moving in zurdo, relative to the released **v1.21.0** these docs describe. Items here are subject to change until they ship.
 
-## Just shipped: v1.13.0 / v1.13.1 (2026-07-31 / 2026-08-01)
+## Just shipped: v1.21.0 (2026-09-01)
 
-The **honest-pass** milestone — three checks that stop a run from reporting work it didn't do, plus the baseline fix that came out of the same review.
+Two ways to state a rule **once** and have zurdo enforce it, instead of relying on every PRD to remember it.
 
-- **A `[shell:]` hint that runs no tests now fails.** `cargo test <filter matching nothing>` exits `0` having verified nothing. A libtest or `go test` report showing zero tests run now fails the hint with `a test runner ran zero tests`, whatever the exit code — at pre-flight, every iteration, `verify`, and `heal`. [Details](hints.md#a-shell-hint-that-runs-no-tests-fails).
-- **A run-end warning names tasks that passed without any agent work.** Terminal `passed` with zero attempts gets called out by name in the summary; a run where *every* task did that escalates to "nothing ran". Diagnostic only — the exit code is untouched — and silent on resumes. [Details](usage.md#when-a-task-passes-without-doing-anything).
-- **`doc-echo`, a sixth warn-lint family.** Flags a criterion whose only proof greps a prose doc for a phrase the criterion itself names. Advisory, not `--strict`-promotable, pending field data on its false-positive rate. [Details](hints.md#the-six-warn-lint-families).
-- **Frozen-path comparison is tree-to-tree (v1.13.1).** A frozen glob naming a path that was untracked at capture time no longer failed every attempt with nothing to revert, and a file the run created and never staged no longer escaped the check. `run-diff.patch` gained the same symmetry. [Details](how-it-works.md#evidence-integrity).
-
-These three checks exist because zurdo shipped a release claiming flags its binary did not have: four PRD tasks recorded themselves passed against `[shell: cargo test <name>]` criteria naming tests nobody had written. The v1.12.0 changelog carries the correction.
+- **The completion gate.** `[verification] completion_command` runs one repository-wide check — the full suite, a lint pass — at run end, once every task has passed. A failure or timeout (`[timeouts] completion_seconds`, default `900`) exits with the new code **`9`**, distinct from `5`, so "a task failed" and "every task passed and the repo is broken" stay separate outcomes. It runs on resume too, and shows up in the run summary, a new `gate` column in `zurdo state list`, and `zurdo report`. [Details](configuration.md#the-completion-gate).
+- **Lesson obligations.** A lesson can carry a `requires` block — a regex some criterion must match, per PRD or per task — and `zurdo analyze` reports a PRD that doesn't satisfy it as the new `unaddressed-lesson` warning (the tenth lint family; never promoted by `--strict`). [Details](reason.md#obligations-lessons-that-bind-future-prds).
 
 ## Recently shipped
 
-**v1.12.0 (2026-07-28) — the CI-ready surface.** `--format json` on `validate`, `verify`, and `state list`, all emitting one shared versioned envelope, plus `zurdo validate --strict` to promote four of the six warn-lint families to errors. [Details](commands.md#machine-readable-output).
+**v1.20.0 (2026-08-25) — `zurdo-design-author`.** A seventh bundled skill, one level above PRD authoring: idea → design record → PRDs, with a **no number, no claim** rule for anything presented as new. [Details](writing-prds.md#authoring-with-the-bundled-skills).
 
-**v1.11.0 (2026-07-28) — executor observability.** Terminal [post-mortem blocks](reason.md#post-mortems) that explain a dead task to a human rather than guiding an agent; [out-of-tree path references](reason.md#out-of-tree-path-references) recorded per attempt and surfaced on four read paths; and a reasoner evidence bundle that reads a structured tool-call projection instead of a raw stream tail — on one 348 KB transcript the old window showed 1.18%, 40% of it cost telemetry.
+**v1.19.0 (2026-08-25) — skills that call skills.** `zurdo-lessons` and `zurdo-domain` are the first *disciplines*: skills the other skills invoke mid-task by name. The five user-facing skills are now marked so the model won't invoke them on its own. [Details](how-it-works.md#skills).
 
-**v1.10.0 (2026-07-28) — `zurdo doctor` and the provider vocabulary.** A PRD-free, lock-free, write-free environment diagnostic that subsumes `check-models`, plus a shared provider event vocabulary verified against real captured streams — which is what surfaced three live adapter defects, including a `codex` adapter that could not extract assistant text at all. [Details](commands.md#zurdo-doctor--diagnose-the-environment), [providers](providers.md#event-streams-and-the-vocabulary).
+**v1.18.0 (2026-08-23) — two more lint families and an ignored-test fix.** `discarded-evidence` flags a test hint that throws its stdout away; `cached-verification` flags `go test` without `-count=N`. A libtest run whose only tests were `#[ignore]`d now fails instead of passing, and `zurdo analyze --static-only` no longer needs a config file. [Details](hints.md#the-warn-lint-families).
 
-**v1.9.0 (2026-07-27) — structural hints are generally available.** All seven graduation gates green, so `[symbol:]`/`[references:]`/`[callers:]` left `[experimental]`; `[lumen] enabled` is the only remaining switch. [Details](lumen.md#turning-it-on).
+**v1.17.0 (2026-08-22) — intent review and pre-authored tests.** The `zurdo-prd-review` skill checks a finished run against what the PRD *meant* and scaffolds a follow-up PRD for any gap; `zurdo-prd-author` now asks whether a test a hint runs exists yet, and teaches committing it first. The release also corrected dozens of stale claims in the built-in help and bundled skills. [Details](writing-prds.md#pre-authored-tests).
 
-**v1.8.0 (2026-07-25) — per-task frozen baselines.** Frozen-path enforcement diffs against a baseline captured at each task's first attempt rather than run start, and `blocked-by-dependency` is re-derived on resume, so fixing a failed dependency unblocks its dependents without `--reset`.
+**v1.16.0 (2026-08-12) — `doc-echo` is `--strict`-promotable**, making six of the seven lint families of that release promotable. [Details](commands.md#zurdo-validate---strict).
+
+**v1.15.0 (2026-08-09) — `zurdo validate --authoring-state` / `--at <rev>`.** Lint a PRD whose work already shipped against the tree it was written for. [Details](commands.md#zurdo-validate---authoring-state).
+
+**v1.14.0 (2026-08-08) — lessons become source.** The lesson library moved to a git-tracked `lessons/` directory (no migration from `.zurdo/reason/library/`); accepted heals write lessons without a provider call; lesson reads no longer need `[reason] enabled`; executor prompts gained an `# Evidence Paths` section; and `frozen-overlap` became a lint family. [Details](reason.md#the-library-is-source-not-state).
+
+## Unreleased
+
+Merged since v1.21.0 and planned for the next release:
+
+- **`zurdo lumen query`** — ask the structural index a question directly: `--name <ident>` (qualified-name lookup), `--outline <path>` (a file's definitions in source order), `--callers <name>`, or `--references <name>`, one selector at a time, with `--limit N` (default `20`, `0` for no limit). Output is one tab-separated row per result, in the same shape structural-hint diagnostics use. It reads a freshly repaired view, so no prior `zurdo lumen rebuild` is needed. Requires `[lumen] enabled = true`.
+- **`zurdo mcp serve`** — an MCP stdio server over the same index, for an MCP client to launch (not for typing interactively). It exposes four tools — `search_symbols`, `file_outline`, `find_callers`, `find_references` — that answer in exactly the rows `zurdo lumen query` prints, and it re-checks the working tree on every call, so an agent that just edited a file gets an answer about the edited file. Requires `[lumen] enabled = true`.
+- **Resumed runs explain their shortcuts.** A task that a *resumed* run found already passing now records the evaluation that passed it (`preflight_pass` in `prd.json`), and `zurdo report`'s `passed_at_preflight` reads it — previously that task looked passed with no evidence.
+- **`run-diff.patch` states its baseline.** The patch now opens with a `#` header naming the baseline tree and when it was captured, because a resumed run's patch covers only the work since the resume. `git apply` still accepts it.
 
 ## In development
 
-The next milestone is being scoped — nothing is committed. Watch this page after the next release, or [open an issue](https://github.com/ElOrlis/zurdo-dist/issues) to influence what comes next.
+The current milestone makes zurdo's code index **something agents can query**, not just something the verifier reads. `zurdo lumen query` and `zurdo mcp serve` are its first steps. Themes under consideration after them:
+
+- serving zurdo's own run state — lessons, task status, verdicts — through the same MCP server;
+- registering that server with the agent zurdo launches, so executors can use it during a run;
+- retrieval over prose (docs, PRDs) that the structural index can't cover;
+- links to a sibling repository's index.
+
+None of these are committed. [Open an issue](https://github.com/ElOrlis/zurdo-dist/issues) to influence what comes next.
 
 ## Release history
 
 | Version | Date       | Highlights                                                                                          |
 | ------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| 1.21.0  | 2026-09-01 | Completion gate (`[verification] completion_command`, exit `9`); lesson `requires` obligations and the `unaddressed-lesson` lint. |
+| 1.20.0  | 2026-08-25 | `zurdo-design-author` bundled skill; cold-init performance gate samples best-of-5. |
+| 1.19.0  | 2026-08-25 | `zurdo-lessons` and `zurdo-domain` discipline skills; orchestrator skills marked model-uninvocable. |
+| 1.18.0  | 2026-08-23 | `discarded-evidence` and `cached-verification` lint families; all-ignored libtest runs fail; `analyze --static-only` works without a config. |
+| 1.17.0  | 2026-08-22 | `zurdo-prd-review` skill; pre-authored-test authoring rule; `IntentReview` lesson source; large accuracy pass over help topics and bundled skills. |
+| 1.16.0  | 2026-08-12 | `--strict` promotes `doc-echo`; `doc-echo` stands down beside a sibling `[no-grep:]`. |
+| 1.15.0  | 2026-08-09 | `zurdo validate --authoring-state` and `--at <rev>`. |
+| 1.14.0  | 2026-08-08 | Lessons as git-tracked `lessons/*.md` + `usage.json`; heal-acceptance lessons; `# Evidence Paths` prompt section and `prime_context`; `frozen-overlap` lint; masked grep tautologies. |
 | 1.13.1  | 2026-08-01 | Frozen-path diffs are tree-to-tree, so untracked paths count in both directions; `run-diff.patch` includes run-created files. |
 | 1.13.0  | 2026-07-31 | Empty-test-run detection on `[shell:]` hints; run-end vacuous-pass warning; `doc-echo` warn-lint family. |
 | 1.12.0  | 2026-07-28 | `--format json` on `validate`/`verify`/`state list` via a shared versioned envelope; `validate --strict`. |

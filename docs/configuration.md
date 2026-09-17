@@ -115,21 +115,51 @@ Before a run, zurdo probes each mapped model against its provider CLI (the *mode
 | `defaults.analyzer_parallelism`  | Concurrent analyzer LLM calls during `zurdo analyze` (range 1–16; `1` preserves fully sequential behavior). | `4`     |
 | `timeouts.criterion_seconds`     | Time limit per `shell:`/`http:` hint execution (file/grep checks are local and unbounded). | `300`   |
 | `timeouts.agent_seconds`         | Time limit per agent invocation when the task omits `**Agent-timeout**`.            | `1800`  |
+| `timeouts.completion_seconds`    | Time limit for the run-end [completion gate](#the-completion-gate). Not seeded by `zurdo init`. A timeout counts as a gate failure (exit `9`). | `900`   |
+
+A single `[shell:]` hint can override `criterion_seconds` with a trailing `timeout:<N>(s|m|h)` token; `[http:]` hints can't — see [Timeouts](hints.md#timeouts).
 
 ## Providers
 
 Each `[providers.<name>]` block names the CLI binary zurdo shells out to and optional `extra_args` appended to every invocation. The binary must be on your `PATH` and authenticated — zurdo holds no credentials of its own. Details on how each CLI is driven are on the [Providers](providers.md) page.
 
-## Protected paths
+## The `[verification]` table
 
-An optional `[verification]` table declares run-wide **frozen globs** — paths no agent may modify during any task of a run:
+`[verification]` is optional and **not seeded by `zurdo init`**. It holds three run-wide settings:
 
 ```toml
 [verification]
-protected_paths = ["Cargo.lock", "docs/**/*.md"]
+protected_paths    = ["Cargo.lock", "docs/**/*.md"]
+prime_context      = true                       # the default
+completion_command = "cargo test --workspace && cargo clippy --all-targets -- -D warnings"
 ```
 
-These are enforced in union with each task's `**Frozen**` metadata: after every iteration, any protected path appearing in the diff against that task's baseline (captured at its first attempt, reused across retries) fails the iteration regardless of criteria results. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, negation is not supported. Enforcement requires the baseline capture, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
+| Key                                   | Meaning                                                                         | Default |
+| ------------------------------------- | -------------------------------------------------------------------------------- | ------- |
+| `verification.protected_paths`        | Run-wide frozen globs ([below](#protected-paths)).                              | `[]`    |
+| `verification.prime_context`          | Give the executor prompt an `# Evidence Paths` section ([below](#context-priming)). Set `false` to go back to the pre-v1.14 prompt. | `true` |
+| `verification.completion_command`     | The run-end [completion gate](#the-completion-gate). No gate runs when this is unset. | unset |
+
+### Protected paths
+
+`protected_paths` names paths no agent may modify during **any** task of a run. It applies to every task whether or not that task declares its own `**Frozen**` globs; a task's `**Frozen**` globs add to the list for that task and can never narrow it. After every iteration, any protected path appearing in the diff against that task's baseline (captured at its first attempt, reused across retries) fails the iteration regardless of criteria results. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, negation is not supported. Enforcement requires the baseline capture, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
+
+`zurdo validate` warns when a criterion points at a protected path it can't satisfy without touching it — the [`frozen-overlap`](hints.md#the-warn-lint-families) lint.
+
+### Context priming
+
+Since v1.14.0 every executor prompt carries an `# Evidence Paths` section, rendered between `# Acceptance Criteria` and `# Available Skills` from the first attempt on. It lists every file the task's own criteria point at (`[file-exists:]`, `[file-absent:]`, `[grep:]`, `[no-grep:]`, and the structural hints), each annotated with what the agent can't cheaply find out on its own: whether the path **exists yet** (a missing path names a file the task must create) and whether it is **frozen** for this task. An agent learns a path is untouchable by reading the prompt instead of by editing it and failing an iteration. Tasks whose hints are all `[shell:]`, `[http:]`, or `[manual]` get no section. `prime_context = false` is the kill switch.
+
+### The completion gate
+
+A run can finish with every criterion green and the repository still broken — a criterion proves one task's requirement, and nothing checks the whole suite unless every PRD remembers to add that criterion. `completion_command` (v1.21.0) states that repository-wide rule once, in config:
+
+- **When it runs.** Once, at run end, when every task is `passed` or `passed-pending-review` (a pending `[manual]` review doesn't hold it back). A run with a `failed` or `blocked-by-dependency` task exits `5` and never reaches the gate. It **also runs on resume** — including a resume of an already-complete run — because the rule concerns the working tree, not a particular run.
+- **What it is.** One shell command string; chain steps with `&&`. There's no list form and no per-PRD override. It isn't a criterion: it proves no requirement, belongs to no task, never changes a task's status, and `zurdo verify` doesn't run it. `zurdo heal` never runs it.
+- **Budget.** `[timeouts] completion_seconds` (default `900`), separate from `criterion_seconds`.
+- **Outcome.** `passed`, `failed`, or `timed-out`. Either failure exits `9` — distinct from `5`, so CI can tell "a task failed" from "every task passed and the repo is broken". The run summary shows the failing command and its output, `zurdo state list` shows it in a `gate` column, and `zurdo report` carries the full record (text and JSON).
+
+A repository that sets no `completion_command` behaves exactly as before. See [The completion gate](usage.md#the-completion-gate) for how it looks in a run.
 
 ## Skills search paths
 
@@ -169,7 +199,7 @@ Manage it explicitly with `zurdo vela serve|start|stop|status`; `zurdo lumen sta
 
 ## Reason: diagnosis and lessons
 
-The `[reason]` table and `[roles.reasoner]` opt into stall diagnosis and the cross-run lesson library. They are accepted in config but **not seeded by `zurdo init`** — the full key reference, defaults, and lifecycle live on [Diagnosis & lessons](reason.md#configuration).
+The `[reason]` table and `[roles.reasoner]` configure stall diagnosis and the [lesson library](reason.md#lessons). `[reason] enabled` switches on only the reasoner calls made on a stall — since v1.14.0, reading and injecting committed lessons needs no switch. Both are accepted in config but **not seeded by `zurdo init`** — the full key reference, defaults, and lifecycle live on [Diagnosis & lessons](reason.md#configuration).
 
 ## Pricing overrides
 
@@ -195,6 +225,8 @@ default            = 1.0
 ```
 
 Negative values are rejected at config load.
+
+Prices are looked up by **exact model id**. A dated Anthropic pin such as `claude-haiku-4-5-20251001` in `[effort_map.anthropic]` does not fall back to the undated `claude-haiku-4-5` row, so the run's cost estimate is marked `partial` — add a `[pricing.<dated-id>]` block if you pin one.
 
 ## Precedence
 

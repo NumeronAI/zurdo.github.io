@@ -63,10 +63,10 @@ Exit `0` is not proof on its own. `cargo test <filter matching nothing>` exits `
 
 Two runner dialects are recognized:
 
-- **libtest** (`cargo test`, `cargo bench --test`) — a `running N tests` report with no `N ≥ 1` line among them.
+- **libtest** (`cargo test`, `cargo bench --test`) — a `running N tests` report with no `N ≥ 1` line among them. Since v1.18.0 a run whose only selected tests were `#[ignore]`d also fails: every `test result:` line shows `0 passed` and no failures, and at least one shows a nonzero `ignored` count. A real pass in one target of a workspace sweep still survives ignored tests reported by another.
 - **`go test`** — a package line ending `[no tests to run]`. A `[no test files]` package line is *not* a report at all and never fails the hint.
 
-The check reads the untruncated capture, so a single genuine `running 1 test` among hundreds of zero-report lines still passes, and it applies everywhere criteria are evaluated: pre-flight, every iteration, `zurdo verify`, and `zurdo heal`. Runners whose output wasn't captured at authoring time (`cargo nextest`, the JS runners) are deliberately not matched; `pytest` needs no matcher because it already exits `5` on an empty filter. A criterion that genuinely wants a zero-test invocation to pass can redirect its output (`… > /dev/null`) to escape the check.
+The check reads the untruncated capture, so a single genuine `running 1 test` among hundreds of zero-report lines still passes, and it applies everywhere criteria are evaluated: pre-flight, every iteration, `zurdo verify`, and `zurdo heal`. Runners whose output wasn't captured at authoring time (`cargo nextest`, the JS runners) are deliberately not matched; `pytest` needs no matcher because it already exits `5` on an empty filter. A criterion that genuinely wants a zero-test invocation to pass can redirect its output (`… > /dev/null`) to escape the check — but do that deliberately: the [`discarded-evidence`](#the-warn-lint-families) lint flags exactly that shape on a `cargo test` or `go test` hint, because it blinds this check.
 
 <div class="callout callout--warning" markdown="1">
 **Why this exists** A milestone's worth of zurdo's own PRD tasks once recorded themselves as passed against `[shell: cargo test <name>]` criteria naming tests nobody had written — all four passed at pre-flight, with zero agent attempts, and a release shipped claiming flags the binary did not have. The empty-test-run check and the [run-end vacuous-pass warning](usage.md#when-a-task-passes-without-doing-anything) are the two guards that came out of it.
@@ -75,6 +75,18 @@ The check reads the untruncated capture, so a single genuine `running 1 test` am
 ## Timeouts
 
 `shell:` and `http:` hints are bounded by `[timeouts] criterion_seconds` in config (default 300s). File and grep hints are local checks and are not time-limited.
+
+A single `[shell:]` hint can override that budget with a trailing `timeout:<N>(s|m|h)` token:
+
+```markdown
+- [ ] the integration suite passes [shell: cargo test --test integration timeout:10m]
+```
+
+The modifier is **`[shell:]`-only**. `[http:]` accepts no `timeout:` tail — `[http: GET … -> 200 timeout:5s]` is a parse error (`malformed http hint`, exit `2`). For a slow HTTP check, raise `timeouts.criterion_seconds` instead.
+
+<div class="callout callout--info" markdown="1">
+**Not hints** `timeout:<duration>`, `contains "<substring>"`, and `[proves:<req-id>]` share the bracket grammar but are modifiers: none of them runs a check on its own, and a criterion carrying only `[proves:req-a]` still fails validation with *criterion has no hints*.
+</div>
 
 ## Regex semantics for `[grep:]` / `[no-grep:]`
 
@@ -111,24 +123,30 @@ Hints must actually test something meaningful. Three pitfalls prove nothing:
 - **Grep tautologies** — `[grep: .* in src/main.rs]` matches everything and proves nothing; `[no-grep: ^$ in src/main.rs]` fails tautologically.
 - **Doc echoes** — a criterion whose *only* hint greps a prose document for a phrase the criterion's own text names. The task's job is to write that phrase, so the criterion cannot fail: it proves the phrase was typed, not that anything works.
 
-### The six warn-lint families
+### The warn-lint families
 
-Both `zurdo validate` and `zurdo analyze` surface the same deterministic lint families — as `warning:` lines on stderr from `validate`, and as `Finding`s at warning severity from `analyze`:
+Ten deterministic lint families look for criteria that can't fail, can't be satisfied, or can't be trusted. `zurdo validate` reports nine of them as `warning:` lines on stderr; `zurdo analyze` reports all ten as `Finding`s at warning severity (the tenth, `unaddressed-lesson`, is `analyze`-only). Rows are in the order `validate` emits them:
 
 | Family                  | Fires when                                                                                             | Promotable by `--strict`? |
 | ----------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `skill-resolution`      | A PRD-referenced skill can't be resolved.                                                               | No — permanently exempt; skills are user-managed, so a CI checkout legitimately lacks them |
 | `grep-target`           | A `[grep:]`/`[no-grep:]` pattern targets a directory or doesn't compile.                                | Yes                       |
 | `vacuous-shell`         | A `[shell:]` payload can't fail (`true`, a bare `echo`, …).                                             | Yes                       |
-| `grep-tautology`        | A pattern matches everything (or nothing) by construction.                                              | Yes                       |
+| `grep-tautology`        | A `[grep:]` pattern already matches its target, so the criterion is green before any work. Since v1.14.0 it also catches a pattern whose regex metacharacters *hide* the tautology — `diff_names_tree(repo_root)` searches for a capture group, not the literal call — and names the characters to escape. | Yes |
+| `frozen-overlap`        | A `[grep:]`/`[no-grep:]`/`[file-exists:]`/`[file-absent:]` hint's evidence path matches a `**Frozen**` or `[verification] protected_paths` glob and doesn't already hold — the agent can't satisfy it without tripping the frozen-path guard (v1.14.0). | Yes |
+| `doc-echo`              | A criterion's sole hint greps a prose doc — extension `md`, `mdx`, `markdown`, `rst`, or `adoc`, or a path starting `docs/` — for a phrase the criterion itself names. | Yes (since v1.16.0) |
 | `uncovered-requirement` | A declared `### Requirements` id no `[proves:]` criterion covers.                                       | Yes                       |
-| `doc-echo`              | A criterion's sole hint greps a prose doc — extension `md`, `mdx`, `markdown`, `rst`, or `adoc`, or a path starting `docs/` — for a phrase the criterion itself names. | No — advisory pending field data on false positives |
-| `skill-resolution`      | A PRD-referenced skill can't be resolved.                                                               | No — permanently exempt; skills are user-managed, so a CI checkout legitimately lacks them |
+| `discarded-evidence`    | A `[shell:]` hint running `cargo test` or `go test` throws stdout away (`>/dev/null`, `&>/dev/null`, `1>/dev/null`), leaving the [empty-test-run check](#a-shell-hint-that-runs-no-tests-fails) nothing to read (v1.18.0). A bare `2>/dev/null` is fine. | No — pending field data |
+| `cached-verification`   | A `[shell:]` hint runs a test runner that caches *results* without the flag that defeats the cache — `go test` without `-count=N` — so a replayed report can pass a criterion the current tree fails (v1.18.0). `cargo test` caches compilation only and is not flagged. | No — pending field data |
+| `unaddressed-lesson`    | A [lesson with a `requires` obligation](reason.md#obligations-lessons-that-bind-future-prds) applies to this PRD and no criterion satisfies it (v1.21.0). **`zurdo analyze` only.** | No — the obligations are repository-specific |
 
-`zurdo validate --strict` promotes the four promotable families to validation errors, so a PRD that would otherwise pass with warnings exits `2` — see [CI integration](usage.md#ci-integration).
+`zurdo validate --strict` promotes the six promotable families to validation errors, so a PRD that would otherwise pass with warnings exits `2` — see [CI integration](usage.md#ci-integration).
 
 Two remedies clear a `doc-echo` finding, and the suggestion names both: pin a **constant the change introduces** rather than the prose describing it, or add a **second hint that checks the behavior** so the criterion no longer rests on the grep alone. The lint already exempts patterns that carry a constant anchor (a digit, `/`, `_`, `::`, a `.` before an alphanumeric, a backtick, a leading `-`) or any regex metacharacter — a hand-built pattern is a deliberate act of precision, not an echo.
 
-`zurdo analyze` also flags a **frozen-path overlap**: a `grep:`/`no-grep:`/`file-exists:`/`file-absent:` hint whose evidence path matches a `**Frozen**` glob or a `[verification] protected_paths` config glob for the same task — a conflict that would otherwise surface only as failed iterations at run time. If you're unsure whether a hint proves anything, run `zurdo analyze <prd> --static-only`: the deterministic lint surfaces every family above before you commit compute to a real run.
+`doc-echo` also stands down (since v1.16.0) when another criterion in the same task carries a `[no-grep:]` against the same file — that remove-the-old-text, add-the-new-text pair can't pass without a real edit.
+
+A `frozen-overlap` finding is a conflict that would otherwise surface only as failed iterations at run time; a guard that already holds today (say, a `[no-grep:]` whose pattern is already absent) isn't reported. If you're unsure whether a hint proves anything, run `zurdo analyze <prd> --static-only`: the deterministic lint surfaces every family above before you commit compute to a real run. For a PRD whose work has already shipped, lint it with [`zurdo validate --authoring-state`](commands.md#zurdo-validate---authoring-state) — against `HEAD` every grep reads as a tautology.
 
 ## Structural hints
 
