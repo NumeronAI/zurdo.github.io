@@ -23,7 +23,9 @@ Zurdo ships as a pre-built binary from the public [zurdo-dist](https://github.co
 | macOS, Apple Silicon | `aarch64-apple-darwin` | ✓ | ✓ |
 | Linux x86_64 | `x86_64-unknown-linux-gnu` | ✓ | ✓ |
 | Linux aarch64 | `aarch64-unknown-linux-gnu` | ✓ | ✓ |
-| macOS, Intel | — | not pre-built yet | |
+| macOS, Intel | — | — | — |
+
+Intel Macs aren't pre-built yet.
 
 ## Homebrew (macOS and Linux)
 
@@ -54,11 +56,14 @@ curl -fsSL "https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}/
   | tar -xz -C /usr/local/bin zurdo
 ```
 
-Each release also ships `checksums.txt` and a `.sha256` file for each archive. Verify them before installing in CI:
+Each release also ships `checksums.txt` and a `.sha256` file for each archive. To verify before installing (recommended in CI), download the archive instead of piping it, check it, then extract:
 
 ```sh
-curl -fsSLO "https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}/checksums.txt"
-sha256sum --check --ignore-missing checksums.txt
+BASE="https://github.com/ElOrlis/zurdo-dist/releases/download/v${VERSION}"
+curl -fsSLO "${BASE}/zurdo-v${VERSION}-${TARGET}.tar.gz"
+curl -fsSLO "${BASE}/checksums.txt"
+sha256sum --check --ignore-missing checksums.txt   # macOS: shasum -a 256 --check --ignore-missing checksums.txt
+tar -xzf "zurdo-v${VERSION}-${TARGET}.tar.gz" -C /usr/local/bin zurdo
 ```
 
 ## Shell completions and man pages
@@ -75,17 +80,25 @@ eval "$(zurdo completions zsh)"     # e.g. in your ~/.zshrc
 
 Zurdo shells out to an agent CLI to do the work. Install and sign in to at least one:
 
-| Provider  | CLI                                                              | Auth                                    |
-| --------- | ---------------------------------------------------------------- | ---------------------------------------- |
-| Anthropic | [`claude`](https://docs.claude.com/en/docs/claude-code/overview) | `claude login` or `ANTHROPIC_API_KEY`   |
-| OpenAI    | [`codex`](https://github.com/openai/codex)                       | `codex login` or `OPENAI_API_KEY`       |
-| GitHub    | [`copilot`](https://github.com/github/gh-copilot)                | `copilot auth login` or `GITHUB_TOKEN`  |
+| Provider | CLI | Auth |
+| --- | --- | --- |
+| Anthropic | [`claude`](https://docs.claude.com/en/docs/claude-code/overview) | `claude login` or `ANTHROPIC_API_KEY` |
+| OpenAI | [`codex`](https://github.com/openai/codex) | `codex login` or `OPENAI_API_KEY` |
+| GitHub | [`copilot`](https://github.com/github/gh-copilot) | `copilot auth login` or `GITHUB_TOKEN` |
 
 `zurdo init` writes a `.zurdo/config.toml` with all three providers wired up, so switching is a one-line edit. See [Providers](providers.md).
 
 ## Verify the installation
 
-Run `zurdo --version`. Then, after `zurdo init` in a repository, run `zurdo doctor`. It checks that the config loads, each provider CLI is on `PATH`, and each mapped model is available to your account:
+Check the binary, then run `zurdo doctor` in a repository you've set up with `zurdo init`:
+
+```sh
+zurdo --version
+zurdo init      # once per repository
+zurdo doctor
+```
+
+Doctor checks that the config loads, each provider CLI is on `PATH`, and each mapped model is available to your account:
 
 <figure class="lp-terminal" aria-label="zurdo doctor output with every check passing">
 <div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo doctor --skip-probes</span></div>
@@ -109,5 +122,9 @@ state:
 Doctor exits `4` on anything that would stop a run and `0` when its findings are only advisory. `--skip-probes` keeps it offline: no provider process is started. See [Commands](commands.md#zurdo-doctor--diagnose-the-environment).
 
 <div class="callout callout--info" markdown="1">
-**Note** If you see `zurdo: command not found` right after `brew install` on Linux, the Homebrew bin directory isn't on your `PATH`. Add `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` to your shell rc.
+**Note** If you see `zurdo: command not found` right after `brew install` on Linux, the Homebrew bin directory isn't on your `PATH`. Add this to your shell rc (`~/.bashrc` or `~/.zshrc`):
+
+```sh
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+```
 </div>
