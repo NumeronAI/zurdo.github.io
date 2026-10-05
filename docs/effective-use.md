@@ -9,7 +9,7 @@ description: "The research → PRD → run pipeline, framed with Anthropic's AI 
 # Page navigation
 page_nav:
     prev:
-        content: The operating rhythm
+        content: The PRD loop
         url: '/docs/workflow.html'
     next:
         content: Writing PRDs

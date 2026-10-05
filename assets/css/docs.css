@@ -457,3 +457,18 @@
 .lp-prose details > :nth-child(2) { margin-top: 14px; }
 .lp-prose details > :last-child { margin-bottom: 16px; }
 .lp-prose details .highlighter-rouge { margin-inline: 12px; }
+
+/* Formulas — a centered equation, not a copyable code block */
+.lp-prose .lp-formula {
+  margin: 0 0 1.5em;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  text-align: center;
+}
+.lp-prose .lp-formula span { color: var(--foreground); }
+.lp-prose .lp-formula span:first-child { color: var(--accent); font-weight: 600; }

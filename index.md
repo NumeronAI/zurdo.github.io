@@ -61,11 +61,11 @@ why:
       url: /docs/reason.html
 
 throughput:
-  eyebrow: The operating rhythm
+  eyebrow: The PRD loop
   title: Attention per verdict, not per iteration.
   body: An interactive chat workflow consumes engineer attention every iteration, so throughput stays chained to implementation time. Zurdo spends it once per design and once per verdict — and nothing forces the loop to be serial.
   footnote: Implementation time drops out of the equation. Author the next PRD while the last one runs; review both when you're free.
-  cta: Read the operating rhythm
+  cta: Read about the PRD loop
   url: /docs/workflow.html
 
 quickstart:

@@ -11,7 +11,7 @@
     - title: Usage
       excerpt: Everyday workflows, run output, CI integration, troubleshooting.
       url: /docs/usage.html
-    - title: The operating rhythm
+    - title: The PRD loop
       excerpt: The loop you run zurdo in — and how it maps onto agile.
       url: /docs/workflow.html
     - title: Effective use

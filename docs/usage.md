@@ -12,7 +12,7 @@ page_nav:
         content: Installation
         url: '/docs/installation.html'
     next:
-        content: The operating rhythm
+        content: The PRD loop
         url: '/docs/workflow.html'
 
 # Mermaid diagrams on this page
