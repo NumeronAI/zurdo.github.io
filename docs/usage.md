@@ -185,12 +185,13 @@ If the gate fails or runs past `[timeouts] completion_seconds` (default `900`), 
 
 On a TTY, the live agent output is shown as one summary line per meaningful step instead of raw JSON:
 
-```
-  • agent: I'll add the limiter middleware first, then wire it into app.rs
-  • tool Bash: cargo test rate_limit:: (exit 0)
-  • edit: src/middleware/rate_limit.rs (+64 −0)
-  • result: turn complete — 2 files changed
-```
+<figure class="lp-terminal" aria-label="Live agent output summarized as one line per step">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo run prds/rate-limit.md</span></div>
+<pre class="lp-terminal__body"><code>  <span class="t-dim">•</span> agent: I'll add the limiter middleware first, then wire it into app.rs
+  <span class="t-dim">•</span> tool Bash: cargo test rate_limit:: <span class="t-dim">(exit 0)</span>
+  <span class="t-dim">•</span> edit: src/middleware/rate_limit.rs <span class="t-ok">(+64 −0)</span>
+  <span class="t-dim">•</span> result: turn complete — 2 files changed</code></pre>
+</figure>
 
 This works with all three providers' structured formats (`claude` stream-json, `codex --json`, `copilot` JSON). The full raw stream is always saved to `.zurdo/<slug>/iterations/*.out` and `.err`. Prefer the raw bytes? `--raw-agent` restores them (it can't be combined with `--quiet-agent`).
 
@@ -295,14 +296,14 @@ zurdo run prds/feature.md \
   || ec=$?
 
 case "$ec" in
-  0)    echo "all tasks passed" ;;
-  2)    echo "PRD grammar broken";   exit 1 ;;
-  3|4)  echo "infra / pre-flight";   exit 1 ;;
-  5)    echo "task failure";         exit 1 ;;  # real regression
-  6)    echo "budget exhausted";     exit 1 ;;  # bump --max-iterations
-  7|8)  echo "analyze-fix non-convergent"; exit 1 ;;
-  9)    echo "tasks passed, completion gate failed"; exit 1 ;;
-  *)    echo "unexpected ec=$ec";    exit 1 ;;
+  0)   echo "all tasks passed" ;;
+  2)   echo "PRD grammar broken";                    exit 1 ;;
+  3|4) echo "infra / pre-flight";                    exit 1 ;;
+  5)   echo "task failure";                          exit 1 ;;  # real regression
+  6)   echo "budget exhausted";                      exit 1 ;;  # bump --max-iterations
+  7|8) echo "analyze-fix non-convergent";            exit 1 ;;
+  9)   echo "tasks passed, completion gate failed";  exit 1 ;;
+  *)   echo "unexpected ec=$ec";                     exit 1 ;;
 esac
 ```
 
@@ -344,23 +345,23 @@ Save `.zurdo/<slug>/reports/*.json` and `.zurdo/<slug>/iterations/*` as build ar
 | --- | --- | --- |
 | `lock held by pid <n>` (exit `3`) | Another `zurdo run`, or an open `zurdo review`, holds the lock for this PRD | Wait. If no zurdo is running, the lock is stale and the next run takes it over. |
 | `state mismatch — pass --reset` (exit `4`) | The PRD changed (any byte) since the last run | If the edits were intentional, use `--reset`. Old state goes to `.zurdo/<slug>/.archive/<ts>/`. `zurdo heal` edits are reconciled automatically. |
-| `unknown model anthropic:<x>` (exit `4`) | A model in `[effort_map.<provider>]` is unknown or unsupported under your auth | Probe with `zurdo doctor`, fix the entry, or pass `--skip-model-check` |
-| Run won't start, unclear message | Config, provider, `PATH`, model, or state problem | `zurdo doctor` names the failing check and, where it can, the fix |
-| `task heading uses hyphen-minus where em-dash required` (exit `2`) | The task heading uses `-` or `–` instead of `—` | Use a real em-dash: `Option+Shift+-` on macOS, `Compose - - -` on Linux |
-| `acceptance criterion has no hint` (exit `2`) | A `- [ ]` line has no hint | Add a hint, or `[manual]` for human-only review |
-| Agent runs forever, no progress | The agent is hung or slow | Lower `Agent-timeout` in the task, or `[timeouts] agent_seconds` in config |
+| `unknown model anthropic:<x>` (exit `4`) | A model in `[effort_map.<provider>]` is unknown or unsupported under your auth | Probe with `zurdo doctor`, fix the entry, or pass `--skip-model-check`. |
+| Run won't start, unclear message | Config, provider, `PATH`, model, or state problem | `zurdo doctor` names the failing check and, where it can, the fix. |
+| `task heading uses hyphen-minus where em-dash required` (exit `2`) | The task heading uses `-` or `–` instead of `—` | Use a real em-dash: `Option+Shift+-` on macOS, `Compose - - -` on Linux. |
+| `acceptance criterion has no hint` (exit `2`) | A `- [ ]` line has no hint | Add a hint, or `[manual]` for human-only review. |
+| Agent runs forever, no progress | The agent is hung or slow | Lower `Agent-timeout` in the task, or `[timeouts] agent_seconds` in config. |
 | `frozen path modified: <path>` on every iteration | The task really needs to edit a frozen path | Unfreeze it or restructure the task. `zurdo analyze` warns about these overlaps up front. |
-| Grep criterion keeps failing though the content looks right | The pattern or path is misaimed (moved file, renamed symbol) | `zurdo heal <prd>` |
-| *structural hint requires `lumen.enabled = true`* | The PRD uses `[symbol:]`, `[references:]`, or `[callers:]` with Lumen off | Set `[lumen] enabled = true`. See [Structural verification](lumen.md#turning-it-on). |
-| *a test runner ran zero tests* | A `[shell:]` test command matched no tests, or every selected test is `#[ignore]`d | Fix the filter, write the test, or run ignored tests with `-- --include-ignored`. See the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails). |
+| Grep criterion keeps failing though the content looks right | The pattern or path is misaimed (moved file, renamed symbol) | Run `zurdo heal <prd>`. |
+| `structural hint requires lumen.enabled = true` | The PRD uses `[symbol:]`, `[references:]`, or `[callers:]` with Lumen off | Set `[lumen] enabled = true`. See [Structural verification](lumen.md#turning-it-on). |
+| `a test runner ran zero tests` | A `[shell:]` test command matched no tests, or every selected test is `#[ignore]`d | Fix the filter, write the test, or run ignored tests with `-- --include-ignored`. See the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails). |
 | Pre-flight fails with a non-ready Lumen index | A file the structural index needed couldn't be parsed | `zurdo lumen rebuild`, then re-run. For faster repairs, keep the index warm with [Vela](lumen.md#the-vela-watcher). |
 | Exit `9` although every task passed | The [completion gate](#the-completion-gate) failed or timed out | Read its output in the summary or `zurdo report`, fix the tree, then `zurdo run --resume`. Raise `[timeouts] completion_seconds` if it just ran long. |
-| `discarded-evidence` / `cached-verification` warning | A `[shell:]` test hint discards stdout, or runs `go test` without `-count=1` | Drop the `>/dev/null`, or add `-count=1` |
+| `discarded-evidence` / `cached-verification` warning | A `[shell:]` test hint discards stdout, or runs `go test` without `-count=1` | Drop the `>/dev/null`, or add `-count=1`. |
 | `reason: library unreadable lessons/<file>.md: …` | A lesson file's frontmatter doesn't parse (often a misspelled key) | Fix the key named in the error. Until then, the lesson is ignored. The exit code is unaffected. |
 | `task_stalled` in the progress stream | The agent keeps repeating the same failure | Enable `[reason]` so a stall gets a diagnosis. See [Diagnosis & lessons](reason.md). |
 | Criterion passes but proves nothing | The hint is too loose (`[shell: true]`, `[file-exists: README.md]`) | Tighten it. `zurdo analyze` flags many of these. |
-| `[Y/n]` prompts in CI logs | Stdin happened to be a TTY | Always pass `--no-prompt` in CI, plus `--resume` or `--reset` |
-| `zurdo: command not found` after `brew install` | The Homebrew bin directory isn't on `PATH` (Linux) | `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` in your shell rc |
+| `[Y/n]` prompts in CI logs | Stdin happened to be a TTY | Always pass `--no-prompt` in CI, plus `--resume` or `--reset`. |
+| `zurdo: command not found` after `brew install` | The Homebrew bin directory isn't on `PATH` (Linux) | Add `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` to your shell rc. See [Installation](installation.md#verify-the-installation). |
 
 <details markdown="1">
 <summary>After upgrading zurdo</summary>
