@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Commands
 description: "Full command and flag reference, exit codes."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

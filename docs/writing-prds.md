@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Writing PRDs
 description: "The PRD grammar and its load-bearing rules."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

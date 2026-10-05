@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Roadmap
 description: "What's coming in the next release and what's in development."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

@@ -18,8 +18,8 @@
 		<div>
 			<h2 class="lp-footer__heading">Start here</h2>
 			<ul class="lp-footer__list">
-				{% for item in site.doks.header.nav %}
-					<li><a class="link" href="{{ item.item_url | relative_url }}">{{ item.item_name }}</a></li>
+				{% for item in site.zurdo.nav %}
+					<li><a class="link" href="{{ item.url | relative_url }}">{{ item.title }}</a></li>
 				{% endfor %}
 			</ul>
 		</div>
@@ -30,4 +30,3 @@
 	</div>
 </footer>
 <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
-{% include google-analytics.html %}

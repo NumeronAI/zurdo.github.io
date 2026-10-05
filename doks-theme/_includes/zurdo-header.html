@@ -7,8 +7,8 @@
 			<span class="chip chip--sm chip--default chip--soft lp-brand__tag">docs</span>
 		</a>
 		<nav class="lp-nav__links" aria-label="Primary">
-			{% for item in site.doks.header.nav %}
-				<a class="lp-nav__link" href="{{ item.item_url | relative_url }}"{% if page.url == item.item_url %} aria-current="page"{% endif %}>{{ item.item_name }}</a>
+			{% for item in site.zurdo.nav %}
+				<a class="lp-nav__link" href="{{ item.url | relative_url }}"{% if page.url == item.url %} aria-current="page"{% endif %}>{{ item.title }}</a>
 			{% endfor %}
 		</nav>
 		<div class="lp-nav__actions">

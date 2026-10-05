@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: How it works
 description: "The verification loop, state model, and crash recovery."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Installation
 description: "Homebrew, release tarballs, and prerequisites."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

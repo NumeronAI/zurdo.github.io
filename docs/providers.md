@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Providers
 description: "How zurdo drives the claude, codex, and copilot CLIs."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

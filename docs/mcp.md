@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Agent access (MCP)
 description: "zurdo mcp serve — the structural index and the compound loop's own state, served to coding agents over the Model Context Protocol."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Diagnosis & lessons
 description: "Stall detection, reasoner verdicts, and the cross-run lesson library."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

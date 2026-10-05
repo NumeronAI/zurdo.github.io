@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Configuration
 description: "The .zurdo/config.toml reference."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

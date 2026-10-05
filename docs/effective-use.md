@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Effective use
 description: "The research → PRD → run pipeline, framed with Anthropic's AI Fluency 4Ds."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

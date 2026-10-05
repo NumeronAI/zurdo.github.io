@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Hints reference
 description: "The seven core hint types and the three structural hints, with examples."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

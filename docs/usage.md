@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Usage
 description: "Everyday workflows, run output, CI integration, troubleshooting."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

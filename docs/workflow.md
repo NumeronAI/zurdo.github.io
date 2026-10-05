@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: The operating rhythm
 description: "The loop zurdo was built around — and how it maps, ceremony by ceremony, onto agile."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

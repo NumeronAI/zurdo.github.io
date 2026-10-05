@@ -1,14 +1,10 @@
 ---
 # Page settings
 layout: default
-comments: false
 
 # Hero section
 title: Structural verification
 description: "The Lumen code index, the three structural hint types, querying the index, and the Vela watcher."
-
-# Micro navigation
-micro_nav: true
 
 # Page navigation
 page_nav:

@@ -21,49 +21,22 @@ zurdo:
     repo: https://github.com/NumeronAI/zurdo.github.io
     license: Zurdo is proprietary software, distributed as pre-built binaries. It is an independent reimplementation inspired by the Ralph technique.
     copyright: Copyright © 2026 Numeron Technologies Inc.
+    nav: # top navigation, shown in the header and footer of every page
+        - title: How it works
+          url: /docs/how-it-works.html
+        - title: Installation
+          url: /docs/installation.html
+        - title: Usage
+          url: /docs/usage.html
+        - title: Writing PRDs
+          url: /docs/writing-prds.html
+        - title: Commands
+          url: /docs/commands.html
     support:
         - label: Report a zurdo bug or request a feature
           url: https://github.com/ElOrlis/zurdo-dist/issues
         - label: Give documentation feedback
           url: https://github.com/NumeronAI/zurdo.github.io/issues
-
-# --- Doks theme settings (theme lives in ./doks-theme, vendored into this repo) ---
-doks:
-    baseurl: # empty — custom domain serves from the site root
-    color_theme: blue # Available themes: blue (default), green, purple, red and yellow
-    header:
-        logo:
-            text: # empty — use the image logo instead
-            image: true
-        nav:
-            - item_name: How it works
-              item_url: '/docs/how-it-works.html'
-            - item_name: Installation
-              item_url: '/docs/installation.html'
-            - item_name: Usage
-              item_url: '/docs/usage.html'
-            - item_name: Writing PRDs
-              item_url: '/docs/writing-prds.html'
-            - item_name: Commands
-              item_url: '/docs/commands.html'
-    footer:
-        content:
-            logo:
-                text: # empty — use the image logo instead
-                image: true
-            copyright: Copyright &copy; 2026 Numeron Technologies Inc. <br>Documentation for the <strong>zurdo</strong> CLI.
-        social_list:
-            - network_name: github
-              profile_url: 'https://github.com/NumeronAI'
-    google_analytics:
-        tracking_code: # Add your Google Analytics tracking code to activate Google Analytics
-    comments:
-        disqus_forum_shortname: # Add your disqus forum shortname to activate comments
-
-# SASS settings
-sass:
-    sass_dir: ./doks-theme/_sass
-    style: :compressed
 
 # Jekyll settings
 layouts_dir: ./doks-theme/_layouts
