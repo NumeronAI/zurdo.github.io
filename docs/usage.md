@@ -89,7 +89,7 @@ sequenceDiagram
 
 ```
 ═══════════════════════════════════════════════════════════
-  Zurdo v1.21.0
+  Zurdo v1.25.0
   PRD:      prds/auth.md
   Slug:     auth-a1b2
   Executor: anthropic (effort_map: low=claude-haiku-4-5,
@@ -291,6 +291,7 @@ Notes:
 | Validation error: *structural hint requires `lumen.enabled = true`* | The PRD uses `[symbol:]`/`[references:]`/`[callers:]` while Lumen is off.       | Set `[lumen] enabled = true` — since v1.9.0 that is the only gate. See [Structural verification](lumen.md#turning-it-on). |
 | `warning: '[experimental] structural_hints' is deprecated and ignored` | A pre-1.9 config still carries the retired gate.                              | Delete the key; `[lumen] enabled` governs structural hints on its own.                           |
 | Criterion fails with *a test runner ran zero tests*                | A `[shell:]` test command matched no tests — an empty filter, a test never written. | Fix the filter or write the test. This is the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails) refusing a vacuous exit `0`. |
+| A structural hint that passed on an older release now fails "wrong kind" | v1.25.0 moved some names to deeper kinds (`field`, `enum`, `enum-variant`, `interface`). | Re-pin on the kind `zurdo lumen query --name` reports, or on the enclosing type. See [the upgrade note](lumen.md#what-resolves-per-language). |
 | Pre-flight fails with a non-ready Lumen index                      | A working-tree file the structural index needed could not be parsed.             | `zurdo lumen rebuild`, then re-run. Slow cold repairs after big changes? Keep the index warm with the [Vela watcher](lumen.md#the-vela-watcher). |
 | Run exits `9` although every task passed                          | The [completion gate](#the-completion-gate) failed or timed out.                  | Read the command output in the run summary (or `zurdo report`), fix the tree, then `zurdo run --resume` — the gate re-runs on resume. Raise `[timeouts] completion_seconds` if it merely ran long. |
 | Criterion fails with *a test runner ran zero tests* although tests exist | Every selected test is `#[ignore]`d (v1.18.0), or the filter matches nothing. | Run the ignored tests explicitly (`-- --include-ignored`) or fix the filter. |

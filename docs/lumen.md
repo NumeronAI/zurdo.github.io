@@ -5,7 +5,7 @@ comments: false
 
 # Hero section
 title: Structural verification
-description: "The Lumen code index, the three structural hint types, and the Vela watcher."
+description: "The Lumen code index, the three structural hint types, querying the index, and the Vela watcher."
 
 # Micro navigation
 micro_nav: true
@@ -16,8 +16,8 @@ page_nav:
         content: Hints reference
         url: '/docs/hints.html'
     next:
-        content: Diagnosis & lessons
-        url: '/docs/reason.html'
+        content: Agent access (MCP)
+        url: '/docs/mcp.html'
 
 # Mermaid diagrams on this page
 mermaid: true
@@ -28,7 +28,7 @@ A `[grep:]` hint proves a string exists; it cannot prove the string is *code*. `
 Three pieces make it work, and this page covers all of them:
 
 - The three **structural hint types** — `[symbol:]`, `[references:]`, `[callers:]` (grammar on the [Hints reference](hints.md#structural-hints)).
-- **Lumen** — the persistent, repository-scoped code index at `.zurdo/lumen/` that hint resolution queries.
+- **Lumen** — the persistent, repository-scoped code index at `.zurdo/lumen/` that hint resolution queries — and that you, or an agent, can [query directly](#asking-the-index-a-question).
 - **Vela** — an optional background watcher that keeps the index fresh between runs. Never required for correctness.
 
 The subsystem is **opt-in and off by default**, behind a single config switch. It is no longer experimental: structural hints graduated in **v1.9.0** after every hint type had dogfood coverage across three PRDs and the v1.4.0 syntax and schema soaked unchanged through three further releases.
@@ -99,19 +99,67 @@ The load-bearing properties:
 | `zurdo lumen status`  | Record counts, languages indexed, generations present, last publication time — plus the Vela daemon's state (`vela: not running` when absent). Requires `[lumen] enabled = true`. |
 | `zurdo lumen rebuild` | Rebuild from scratch: take the repository-wide write lock, extract records from the whole repo, publish a new generation atomically, run GC. The remedy for a non-ready index. |
 | `zurdo lumen clear`   | Delete `.zurdo/lumen/` entirely. Confirms on a TTY; `--yes` for non-interactive use.                   |
+| `zurdo lumen query`   | Ask the index a question — a name lookup, a file outline, or the call and reference sites of a name ([below](#asking-the-index-a-question)). Requires `[lumen] enabled = true`. |
+
+The index is also re-parsed automatically when an upgrade changes what an adapter extracts: each release that teaches an adapter new constructs bumps an internal parser version, and records stored by an older one are re-parsed rather than trusted. You don't need to `rebuild` after upgrading.
+
+### Asking the index a question
+
+Structural hints *assert* facts. `zurdo lumen query` (v1.22.0) *asks* — the same index, open-ended, one selector at a time:
+
+```sh
+zurdo lumen query --name Config::load          # definitions matching a name
+zurdo lumen query --outline src/config.rs      # a file's definitions, in source order
+zurdo lumen query --callers load               # call sites whose callee resolves to a name
+zurdo lumen query --references AppConfig       # identifier references to a name
+zurdo lumen query --outline src/config.rs --limit 0   # no row cap (default 20)
+```
+
+Exactly one selector is required. Output is one tab-separated row per result, ending in a 1-based `file:line:column` — the same shape a structural-hint diagnostic prints:
+
+| Selector        | Row                                                        |
+| --------------- | ----------------------------------------------------------- |
+| `--name`        | `rank  kind  qualified-name  file:line:col` — rank is `exact`, `segment`, or `substring` |
+| `--outline`     | `kind  qualified-name  file:line:col`                        |
+| `--callers`     | `callee  enclosing-symbol  file:line:col`                    |
+| `--references`  | `identifier  enclosing-symbol  file:line:col`                |
+
+`--name` ranks exact matches first, then trailing-segment matches (so `load` finds `Config::load`). Since **v1.23.0**, substring matches are a **fallback only** — returned when nothing matched exactly or by segment, instead of padding an exact answer with every name that merely contains the needle.
+
+Callees and receivers are rendered from the syntax tree, not copied from source (v1.25.0): a chain like `db.query(sql).rows` prints as `db.query().rows` — arguments dropped, one line — so a multi-line call can't split a row. `--callers` and `--references` match a trailing `.name` too, so `--references results` finds `computed.results`.
+
+The query reads a freshly repaired view — the same one a verification pass reads — so it needs no prior `zurdo lumen rebuild`, and it writes nothing. The same four questions are served to MCP clients as tools by [`zurdo mcp serve`](mcp.md).
 
 ## What resolves, per language
 
-Lumen indexes **Rust, Python, Go, TypeScript, and JavaScript** (including TSX/JSX). Each adapter maps its constructs onto the closed kind set (`function`, `method`, `type`, `class`, `struct`, `enum`, `interface`, `trait`, `module`, `constant`, `variable`); anything unmapped is not indexed and fails "not found" rather than approximating. Every row below is enforced in both directions by the source repo's capability-matrix test suite.
+Lumen indexes **Rust, Python, Go, TypeScript, and JavaScript** (including TSX/JSX). Each adapter maps its constructs onto one shared vocabulary of **recorded kinds**; anything unmapped is not indexed and fails "not found" rather than approximating. Every row below is enforced in both directions by the source repo's capability-matrix test suite.
+
+There are two kind lists, and the difference matters:
+
+- **Hint kinds** — the eleven a structural hint may name: `function`, `method`, `type`, `class`, `struct`, `enum`, `interface`, `trait`, `module`, `constant`, `variable`.
+- **Recorded kinds** — the fourteen the index stores and `zurdo lumen query` prints: the hint kinds minus `trait` (a hint's `trait` resolves to the recorded `interface`; no adapter records `trait`), plus **`enum-variant`**, **`field`**, **`macro`**, and **`alias`** (v1.23.0–v1.25.0).
+
+The four extra kinds make query answers precise — `--name results` answers `ComputeResult::results` as a `field` instead of a page of substring rows — but **no hint can target them**: a hint naming one fails at parse time with `unknown symbol kind`. They do show up in wrong-kind diagnostics, so a hint pointed at a field fails naming `field ComputeResult::results`.
 
 | Language | Indexed definitions                                                                                     | Cross-file binding via                                        | Deliberately **not** resolved                                                       |
 | -------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Rust     | free `fn`, `impl` methods, `struct`, `enum`, `trait`, `type` aliases, `mod`, `const`, `static`           | `use` trees, nested module paths, `pub use` re-export chains  | `macro_rules!` / proc macros; method-call callees (`receiver.method()` needs type inference); same-named symbols with no import path |
-| Python   | module-level and class `def`, `class`, PEP 695 `type` aliases, module/class assignments (as `variable`)  | relative imports (`from .m import x`)                          | the `constant` kind (assignments always normalize to `variable`); bare `import` statements |
-| Go       | package `func`, receiver methods, `struct`, `interface`, `type` aliases, `const`, `var`, package clause  | package imports resolved through the `go.mod` module path      | `init` blocks; same-named symbols in another package with no import                 |
-| TS / JS  | `function` declarations, arrow/function-expression bindings, `class` + methods, `interface`, `type`, `enum`, variables | relative imports (`./`, `../`), `tsconfig.json` `paths` aliases | `import`/`export` re-exports; same-named symbols with no import path                |
+| Rust     | free `fn` and proc-macro fns, `impl` methods, `struct`/`union` (as `struct`), `enum`, `trait` (as `interface`), `type` aliases, `mod`, `const`, `static` (as `variable`); enum variants, named fields, `macro_rules!` (as `macro`), `use a::B as C` (as `alias`) | `use` trees, nested module paths, `pub use` re-export chains  | tuple fields; bodiless trait method signatures; macro bodies; method-call callees (`receiver.method()` needs type inference); same-named symbols with no import path |
+| Python   | module-level and class `def`, `class`; `Enum`-family subclasses (as `enum`, members as `enum-variant`); `Protocol` subclasses (as `interface`); annotated class attributes and `self.x` targets in `__init__` (as `field`); other assignments (as `variable`); PEP 695 `type` aliases; `import … as …` (as `alias`) | relative imports (`from .m import x`)                          | the `constant` kind (a capability rejection); plain `import`; attributes first set outside `__init__`; a base class followed through its definition (`class Mine(BaseEnum)` stays a `class`) |
+| Go       | package `func`, receiver methods, `struct` and its fields (embedded ones named by their type), `interface` and its method specs (as `method`), `type` aliases, `const`, `var`, package clause, named imports (as `alias`) | package imports resolved through the `go.mod` module path      | `init` blocks; members of an anonymous inner struct; same-named symbols in another package with no import |
+| TS / JS  | `function` declarations, arrow/function-expression bindings, `class` + methods and fields, `interface` (properties as `field`, method signatures as `method`), `type` (a named object type's members too), `enum` and its members, variables (each name a destructuring binds), `namespace` / `declare module` (as `module`, members qualified under it), renaming imports and exports (as `alias`) | relative imports (`./`, `../`), `tsconfig.json` `paths` aliases | `export … from` without a rename; members of an anonymous inline object type; same-named symbols with no import path |
 
-Naming rules that trip people up: qualified names use `::` in **every** language (`Config::load`, even in Python and Go); `trait` in a hint unifies with `interface`; `type` means a type *alias* only (Go's `type Foo struct` is a `struct`). The file-level `module` symbol is the file stem — except `mod.rs`, `__init__.py`, and `index.ts`/`index.tsx`, which take the parent directory's name, and Go, where it is the `package` clause identifier.
+Naming rules that trip people up: qualified names use `::` in **every** language (`Config::load`, even in Python and Go); members are owner-qualified the same way (`FailureReason::EmptyTestRun`, `Geo::Circle::radius` inside a TS namespace, `namespace A.B` is `A::B`); `trait` in a hint unifies with `interface`; `type` means a type *alias* only (Go's `type Foo struct` is a `struct`). The file-level `module` symbol is the file stem — except `mod.rs`, `__init__.py`, and `index.ts`/`index.tsx`, which take the parent directory's name, and Go, where it is the `package` clause identifier.
+
+<div class="callout callout--warning" markdown="1">
+**Changed in v1.25.0: some hints need re-pinning.** Deeper indexing moved some names to a new kind. They still resolve, but a hint that pinned the old kind now fails:
+
+- A TS/JS non-function class property was a `variable` and is now a `field`. A Python annotated class attribute is now a `field` too.
+- A Python `Enum` subclass was a `class` and is now an `enum`, and its members (`Pattern::CLAMP_AT_ZERO`) are `enum-variant`. A `Protocol` subclass was a `class` and is now an `interface`.
+- A TS/JS destructuring declarator (`const { results } = …`) used to index the whole pattern as one fake `variable`. Now each bound name is its own `variable`.
+- A declaration inside a TS `namespace` now qualifies under it (`Geo::area`, not `area`).
+
+Since `field` and `enum-variant` aren't hint kinds, a hint on one of those can't be fixed by changing its kind. Re-pin it on the enclosing class or enum instead. `zurdo lumen query --name <needle>` shows what the index now records.
+</div>
 
 ## The Vela watcher
 
@@ -141,7 +189,7 @@ Where they earn their keep, relative to the [core hints](hints.md):
 - **Existence with teeth.** `[symbol: struct RateLimiter in …]` over `[grep: struct RateLimiter in …]` when you care that it's a real definition in the right file, not a mention.
 - **Cost ladder.** Structural hints are pricier to author than grep (exact kinds, exact files, `::`-qualified names) but cheaper and more precise than spinning up `[shell:]` test infrastructure to prove a relationship — the bundled `zurdo-prd-author` skill slots them between the two and checks the config gates before authoring one.
 
-Two caveats to author around: a hint on a construct the adapter doesn't map (a Rust macro, a Go `init` block) can never pass — check the table above first; and ambiguity is a *failure*, so point hints at uniquely-named symbols or qualify them until they resolve uniquely.
+Two caveats to author around: a hint on a construct the adapter doesn't map (a Go `init` block), or one recorded only under a query-only kind (a field, an enum variant, a macro, an alias), can never pass — check the table above first; and ambiguity is a *failure*, so point hints at uniquely-named symbols or qualify them until they resolve uniquely. When unsure what a name resolves to, ask: `zurdo lumen query --name <name>` prints the exact kind and qualified name a hint should use.
 
 ## Troubleshooting
 
@@ -151,7 +199,9 @@ Two caveats to author around: a hint on a construct the adapter doesn't map (a R
 | `warning: '[experimental] structural_hints' is deprecated and ignored` | A pre-1.9 config still carries the retired second gate.   | Delete the key. `[lumen] enabled` alone governs structural hints.      |
 | Pre-flight fails with a non-ready index                       | A working-tree file Lumen needed could not be (re)parsed.         | `zurdo lumen rebuild`, then re-run. The failure is deliberate — before tokens, never a silent criterion failure. |
 | `[symbol:]` fails "wrong kind"                                | The diagnostic names the kind actually found.                     | Fix the kind in the hint (`struct` vs `type` is the usual culprit).    |
+| A hint that passed before upgrading to v1.25.0 now fails "wrong kind" | The name moved to a deeper kind (`field`, `enum`, `enum-variant`, `interface`). | Re-pin on the kind `zurdo lumen query --name` reports, or on the enclosing type. See [the callout above](#what-resolves-per-language). |
+| Hint fails `unknown symbol kind` naming `field` / `enum-variant` / `macro` / `alias` | Those are recorded kinds, not hint kinds.                    | Target the enclosing type instead, or verify with `[grep:]`.           |
 | `[callers:]` fails `binding_unresolved` though the call is there | The call site doesn't statically import the target, or the callee needs receiver-type inference. | Bind through a static import, or fall back to `[grep:]`/`[shell:]` for that relationship. |
 | Structural hints feel slow at pre-flight after big changes    | Cold repair is reparsing everything that moved.                   | Run the [Vela watcher](#the-vela-watcher) so the index stays warm.     |
 
-Next: [Diagnosis & lessons](reason.md)
+Next: [Agent access (MCP)](mcp.md)

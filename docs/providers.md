@@ -94,6 +94,10 @@ Relatedly, a `CompletionCli` parse failure now names the **cause** rather than o
 - **Copilot quota exhaustion classified as permanent instead of transient**, failing the task outright instead of backing off. A quota-exhausted account reports `session.error` on stdout with stderr empty; classification now consults the parsed stream's error events, not stderr alone.
 </div>
 
+## Handing the agent zurdo's MCP server
+
+With [`[mcp] inject_server = true`](configuration.md#mcp-server-injection) and Lumen enabled, `zurdo run` registers its own [MCP server](mcp.md) with the executor at run start, using each CLI's own per-invocation spelling: `--mcp-config` for `claude`, a pair of `-c mcp_servers.zurdo.*` overrides for `codex` (nothing is written to your persistent codex config), and `--additional-mcp-config` for `copilot`. The `copilot` gate defaults **off**, because an organization's Copilot policy can disable third-party MCP servers, and then the CLI accepts the flag but never starts the server. Details: [Agent access (MCP)](mcp.md#letting-zurdo-run-hand-the-server-to-the-agent).
+
 ## Skill prefixes
 
 Skills are invoked with different sigils per CLI: `/skill-name` for Anthropic and Copilot, `$skill-name` for Codex. List **bare names** in PRD `**Skills**` metadata — zurdo applies the right prefix at prompt-render time for whichever provider is executing. Never hand-prefix skill names in a PRD.

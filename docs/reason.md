@@ -13,8 +13,8 @@ micro_nav: true
 # Page navigation
 page_nav:
     prev:
-        content: Structural verification
-        url: '/docs/lumen.html'
+        content: Agent access (MCP)
+        url: '/docs/mcp.html'
     next:
         content: Commands
         url: '/docs/commands.html'

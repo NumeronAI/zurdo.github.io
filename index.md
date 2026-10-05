@@ -48,9 +48,13 @@ grid_navigation:
       cta: Read more
       url: '/docs/hints.html'
     - title: Structural verification
-      excerpt: The Lumen code index, structural hints, and the Vela watcher.
+      excerpt: The Lumen code index, structural hints, querying, and the Vela watcher.
       cta: Read more
       url: '/docs/lumen.html'
+    - title: Agent access (MCP)
+      excerpt: Serve the code index and run state to coding agents over MCP.
+      cta: Read more
+      url: '/docs/mcp.html'
     - title: Diagnosis & lessons
       excerpt: Stall detection, reasoner verdicts, and the cross-run lesson library.
       cta: Read more
@@ -74,14 +78,14 @@ grid_navigation:
 ---
 
 <div class="callout callout--info" markdown="1">
-**Version** This documentation describes **zurdo v1.21.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
+**Version** This documentation describes **zurdo v1.25.0**. Work in flight is tracked on the [Roadmap](docs/roadmap.md).
 </div>
 
 ## Why zurdo
 
 Zurdo changes what a day of engineering attention produces. You scope the work, spend 30–60 minutes authoring a [PRD](docs/writing-prds.md), and hand it to `zurdo run` — implementation happens on machine time, often on a remote server, while you scope the next piece or get on with your day. You come back to a report and evidence, not a chat transcript to babysit.
 
-Walking away is safe because the loop never grades itself. After every iteration zurdo — never the agent — executes every acceptance criterion's [hint](docs/hints.md) and decides pass/fail; `zurdo validate` and `zurdo analyze` lint the PRD *before* tokens are spent; `Max-Attempts` budgets and [stall detection](docs/reason.md) bound the cost of failure; crash-safe state under `.zurdo/<slug>/` means an interrupted run resumes instead of restarting. When a string match isn't proof enough, opt-in [structural hints](docs/lumen.md) verify *code facts* against the Lumen code index, and the [reason subsystem](docs/reason.md) turns every diagnosed stall into a **lesson** future runs are told about up front. (The design descends from the [Ralph technique](https://github.com/ClaytonFarr/ralph-playbook) — run an agent in a loop against a persistent plan — with each of Ralph's documented gaps closed by the runtime.)
+Walking away is safe because the loop never grades itself. After every iteration zurdo — never the agent — executes every acceptance criterion's [hint](docs/hints.md) and decides pass/fail; `zurdo validate` and `zurdo analyze` lint the PRD *before* tokens are spent; `Max-Attempts` budgets and [stall detection](docs/reason.md) bound the cost of failure; crash-safe state under `.zurdo/<slug>/` means an interrupted run resumes instead of restarting. When a string match isn't proof enough, opt-in [structural hints](docs/lumen.md) verify *code facts* against the Lumen code index — which agents can also [query over MCP](docs/mcp.md) instead of re-reading the tree — and the [reason subsystem](docs/reason.md) turns every diagnosed stall into a **lesson** future runs are told about up front. (The design descends from the [Ralph technique](https://github.com/ClaytonFarr/ralph-playbook) — run an agent in a loop against a persistent plan — with each of Ralph's documented gaps closed by the runtime.)
 
 That safety is what buys the productivity. An interactive chat workflow consumes engineer attention *per iteration*, so throughput stays chained to implementation time. Zurdo consumes it *per design and per verdict*:
 

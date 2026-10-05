@@ -20,7 +20,7 @@ page_nav:
         url: '/docs/configuration.html'
 ---
 
-The complete CLI surface as of zurdo v1.21.0. Every subcommand carries extensive built-in help — `zurdo <subcommand> --help` describes its modes, load-bearing exit codes, and examples — and `zurdo help <topic>` prints offline [guide pages](#zurdo-help--guide-pages-in-the-terminal) right in the terminal. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
+The complete CLI surface as of zurdo v1.25.0. Every subcommand carries extensive built-in help — `zurdo <subcommand> --help` describes its modes, load-bearing exit codes, and examples — and `zurdo help <topic>` prints offline [guide pages](#zurdo-help--guide-pages-in-the-terminal) right in the terminal. A bare `zurdo <prd>` is sugar for `zurdo run <prd>`.
 
 ## Subcommands
 
@@ -46,6 +46,8 @@ The complete CLI surface as of zurdo v1.21.0. Every subcommand carries extensive
 | `zurdo lumen status`          | Report the [structural index](lumen.md)'s state (and the Vela watcher's, when configured)       |
 | `zurdo lumen rebuild`         | Rebuild the structural index from scratch                                                       |
 | `zurdo lumen clear`           | Delete `.zurdo/lumen/`. Confirms on a TTY; `--yes` for non-interactive use                      |
+| `zurdo lumen query <selector>` | Ask the structural index a question — `--name`, `--outline`, `--callers`, or `--references` — over a freshly repaired view; no prior rebuild needed ([details](lumen.md#asking-the-index-a-question)) |
+| `zurdo mcp serve`             | Serve the structural index and compound-loop state to an MCP client over stdio. Launched by the client, not typed ([details](mcp.md)) |
 | `zurdo vela serve` / `start` / `stop` / `status` | Run or manage the optional [background watcher](lumen.md#the-vela-watcher) that keeps the Lumen index fresh |
 | `zurdo help [topic]`          | List every subcommand and guide topic, or print one guide page ([details](#zurdo-help--guide-pages-in-the-terminal)) |
 | `zurdo completions <shell>`   | Print a shell completion script to stdout ([details](#shell-completions-and-man-pages))          |
@@ -220,6 +222,20 @@ The pre-v1.7.0 mode flags `--analyze`, `--fix`, `--static-only`, and `--heal` st
 | `--format <json\|md>`   | (`report` only) Output format. Default `json` — load-bearing for external tooling.            |
 | `--format <text\|json>` | (`verify` and `state list`) The shared versioned envelope. Default `text`.                    |
 
+### `zurdo lumen query`
+
+Exactly one selector is required; clap rejects zero or two. Requires `[lumen] enabled = true`.
+
+| Flag                  | Effect                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `--name <IDENT>`      | Definitions whose qualified name matches — exact, then trailing-segment; substring only when neither matched. |
+| `--outline <PATH>`    | Every definition recorded for that file, in source order.                                                |
+| `--callers <NAME>`    | Every call site whose callee resolves to that name.                                                      |
+| `--references <NAME>` | Every identifier reference to that name.                                                                 |
+| `--limit <N>`         | Maximum rows printed. Default `20`; `0` means unlimited.                                                 |
+
+`zurdo mcp serve` takes no flags of its own; the repository is the working directory it starts in.
+
 ### `zurdo init`
 
 | Flag             | Effect                                                                                                   |
@@ -269,6 +285,7 @@ zurdo verify prds/feature.md                # re-check criteria after hand edits
 zurdo review prds/feature.md                # walk the evidence, sign off [manual] criteria
 zurdo report prds/feature.md --format md    # human-readable run report
 zurdo reason match prds/feature.md          # preview lessons that would inform this PRD
+zurdo lumen query --name Config::load       # ask the structural index (needs [lumen] enabled)
 zurdo help workflow                         # guide pages, offline in the terminal
 eval "$(zurdo completions zsh)"             # shell completions from the live binary
 zurdo skills install --all --all-providers  # every bundled skill, every provider

@@ -17,48 +17,48 @@ page_nav:
         url: '/docs/providers.html'
 ---
 
-What's moving in zurdo, relative to the released **v1.21.0** these docs describe. Items here are subject to change until they ship.
+What's moving in zurdo, relative to the released **v1.25.0** these docs describe. Items here are subject to change until they ship.
 
-## Just shipped: v1.21.0 (2026-09-01)
+## Just shipped: v1.22.0 – v1.25.0 (September 2026)
 
-Two ways to state a rule **once** and have zurdo enforce it, instead of relying on every PRD to remember it.
+Four releases that make zurdo's code index **something agents can ask**, not only something the verifier reads:
 
-- **The completion gate.** `[verification] completion_command` runs one repository-wide check — the full suite, a lint pass — at run end, once every task has passed. A failure or timeout (`[timeouts] completion_seconds`, default `900`) exits with the new code **`9`**, distinct from `5`, so "a task failed" and "every task passed and the repo is broken" stay separate outcomes. It runs on resume too, and shows up in the run summary, a new `gate` column in `zurdo state list`, and `zurdo report`. [Details](configuration.md#the-completion-gate).
-- **Lesson obligations.** A lesson can carry a `requires` block — a regex some criterion must match, per PRD or per task — and `zurdo analyze` reports a PRD that doesn't satisfy it as the new `unaddressed-lesson` warning (the tenth lint family; never promoted by `--strict`). [Details](reason.md#obligations-lessons-that-bind-future-prds).
+- **v1.22.0 (2026-09-20) — query the index.** [`zurdo lumen query`](lumen.md#asking-the-index-a-question) answers name lookups, file outlines, and caller/reference questions from the command line, and [`zurdo mcp serve`](mcp.md) serves the same four questions to MCP clients. Resumed runs now record the evaluation that short-circuited a task (`preflight_pass` in `prd.json`, read by `zurdo report`), and `run-diff.patch` opens with a header naming the baseline it covers.
+- **v1.23.0 (2026-09-21) — deeper Rust, quieter answers.** The index records enum variants, fields, and macros as their own kinds. `--name` stops padding an exact answer with substring matches.
+- **v1.24.0 (2026-09-26) — agents get the server.** Two more MCP tools, `match_lessons` and `run_report`, serve the compound loop's own state. With [`[mcp] inject_server`](mcp.md#letting-zurdo-run-hand-the-server-to-the-agent), `zurdo run` registers the server with the `claude`, `codex`, or `copilot` executor it launches. Off by default.
+- **v1.25.0 (2026-09-29) — Python, TypeScript/JavaScript, and Go depth.** Fields, enum members, protocols, namespaces, and import aliases are indexed in every language, and call chains render on one line. **Some names changed kind**, so a few structural hints may need re-pinning. See [the upgrade note](lumen.md#what-resolves-per-language).
 
 ## Recently shipped
 
+**v1.21.0 (2026-09-01) — state a rule once.** The [completion gate](configuration.md#the-completion-gate) (`[verification] completion_command`, exit `9`) runs a repository-wide check once every task has passed. [Lesson obligations](reason.md#obligations-lessons-that-bind-future-prds) let a lesson require something of every PRD it applies to, enforced by the `unaddressed-lesson` lint.
+
 **v1.20.0 (2026-08-25) — `zurdo-design-author`.** A seventh bundled skill, one level above PRD authoring: idea → design record → PRDs, with a **no number, no claim** rule for anything presented as new. [Details](writing-prds.md#authoring-with-the-bundled-skills).
 
-**v1.19.0 (2026-08-25) — skills that call skills.** `zurdo-lessons` and `zurdo-domain` are the first *disciplines*: skills the other skills invoke mid-task by name. The five user-facing skills are now marked so the model won't invoke them on its own. [Details](how-it-works.md#skills).
+**v1.19.0 (2026-08-25) — skills that call skills.** `zurdo-lessons` and `zurdo-domain` are the first *disciplines*: skills the other skills invoke mid-task by name. [Details](how-it-works.md#skills).
 
-**v1.18.0 (2026-08-23) — two more lint families and an ignored-test fix.** `discarded-evidence` flags a test hint that throws its stdout away; `cached-verification` flags `go test` without `-count=N`. A libtest run whose only tests were `#[ignore]`d now fails instead of passing, and `zurdo analyze --static-only` no longer needs a config file. [Details](hints.md#the-warn-lint-families).
+**v1.18.0 (2026-08-23) — two more lint families and an ignored-test fix.** `discarded-evidence` and `cached-verification`; an all-`#[ignore]`d libtest run now fails. [Details](hints.md#the-warn-lint-families).
 
-**v1.17.0 (2026-08-22) — intent review and pre-authored tests.** The `zurdo-prd-review` skill checks a finished run against what the PRD *meant* and scaffolds a follow-up PRD for any gap; `zurdo-prd-author` now asks whether a test a hint runs exists yet, and teaches committing it first. The release also corrected dozens of stale claims in the built-in help and bundled skills. [Details](writing-prds.md#pre-authored-tests).
-
-**v1.16.0 (2026-08-12) — `doc-echo` is `--strict`-promotable**, making six of the seven lint families of that release promotable. [Details](commands.md#zurdo-validate---strict).
-
-**v1.15.0 (2026-08-09) — `zurdo validate --authoring-state` / `--at <rev>`.** Lint a PRD whose work already shipped against the tree it was written for. [Details](commands.md#zurdo-validate---authoring-state).
-
-**v1.14.0 (2026-08-08) — lessons become source.** The lesson library moved to a git-tracked `lessons/` directory (no migration from `.zurdo/reason/library/`); accepted heals write lessons without a provider call; lesson reads no longer need `[reason] enabled`; executor prompts gained an `# Evidence Paths` section; and `frozen-overlap` became a lint family. [Details](reason.md#the-library-is-source-not-state).
+**v1.17.0 (2026-08-22) — intent review and pre-authored tests.** The `zurdo-prd-review` skill checks a finished run against what the PRD *meant*. [Details](writing-prds.md#pre-authored-tests).
 
 ## Unreleased
 
-Merged since v1.21.0 and planned for the next release:
+Merged since v1.25.0 and planned for the next release:
 
-- **`zurdo lumen query`** — ask the structural index a question directly: `--name <ident>` (qualified-name lookup), `--outline <path>` (a file's definitions in source order), `--callers <name>`, or `--references <name>`, one selector at a time, with `--limit N` (default `20`, `0` for no limit). Output is one tab-separated row per result, in the same shape structural-hint diagnostics use. It reads a freshly repaired view, so no prior `zurdo lumen rebuild` is needed. Requires `[lumen] enabled = true`.
-- **`zurdo mcp serve`** — an MCP stdio server over the same index, for an MCP client to launch (not for typing interactively). It exposes four tools — `search_symbols`, `file_outline`, `find_callers`, `find_references` — that answer in exactly the rows `zurdo lumen query` prints, and it re-checks the working tree on every call, so an agent that just edited a file gets an answer about the edited file. Requires `[lumen] enabled = true`.
-- **Resumed runs explain their shortcuts.** A task that a *resumed* run found already passing now records the evaluation that passed it (`preflight_pass` in `prd.json`), and `zurdo report`'s `passed_at_preflight` reads it — previously that task looked passed with no evidence.
-- **`run-diff.patch` states its baseline.** The patch now opens with a `#` header naming the baseline tree and when it was captured, because a resumed run's patch covers only the work since the resume. `git apply` still accepts it.
+- **Pyxis — search by meaning, not just by name.** Lumen answers questions about *named* code; it can't find the doc section that explains a feature, or the function whose name you don't know. Pyxis is a second, opt-in index over source symbols **and markdown prose**. It is turned on with a new `[pyxis] enabled` key, and it also needs Lumen on. A new `zurdo pyxis status | query | install` command family comes with it:
+  - **Lexical always.** Ranking is BM25 over each symbol's name, doc comment, and first lines, and over each markdown section. No model and no network are needed.
+  - **Hybrid when installed.** `zurdo pyxis install` downloads a small pinned static embedding model from the release and verifies every file's SHA-256 before using it. Ranking then fuses BM25 with embedding similarity. A model whose checksum doesn't match is reported and refused, never silently downgraded to lexical.
+  - **Always current.** The index repairs itself by content hash on every query, so an edit shows up in the next answer.
+  - **Leads, not locations.** Each `zurdo pyxis query` row is labeled `lexical` or `hybrid`, and **no row carries a line or column**. Pyxis tells an agent where to look, and Lumen proves what is there.
+  - **Over MCP too.** `zurdo mcp serve` gains a seventh tool, `find_related`, when Pyxis is enabled.
+  
+  A follow-up still has to land first: `zurdo pyxis install` should repair a damaged model directory, since `status` names it as the fix.
 
 ## In development
 
-The current milestone makes zurdo's code index **something agents can query**, not just something the verifier reads. `zurdo lumen query` and `zurdo mcp serve` are its first steps. Themes under consideration after them:
+The current milestone makes the index an agent-facing surface. Querying, the MCP server, run injection, the compound-loop tools, and per-language depth have shipped, and Pyxis is above. What remains:
 
-- serving zurdo's own run state — lessons, task status, verdicts — through the same MCP server;
-- registering that server with the agent zurdo launches, so executors can use it during a run;
-- retrieval over prose (docs, PRDs) that the structural index can't cover;
-- links to a sibling repository's index.
+- **Measuring whether it pays.** Run injection is off by default until runs with the server are compared against a recorded baseline of how much agents navigate without it. That measurement also decides whether `[mcp] inject_server` should default on.
+- **Links to a sibling repository's index**, so an agent working in one repository can ask about another. This is still being researched.
 
 None of these are committed. [Open an issue](https://github.com/ElOrlis/zurdo-dist/issues) to influence what comes next.
 
@@ -66,6 +66,10 @@ None of these are committed. [Open an issue](https://github.com/ElOrlis/zurdo-di
 
 | Version | Date       | Highlights                                                                                          |
 | ------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| 1.25.0  | 2026-09-29 | Python, TS/JS, and Go depth: fields, enum members, protocols, namespaces, import aliases (`alias` kind); call chains rendered structurally; some names change kind. |
+| 1.24.0  | 2026-09-26 | `match_lessons` and `run_report` MCP tools; `[mcp] inject_server` registers `zurdo mcp serve` with the executor. |
+| 1.23.0  | 2026-09-21 | Rust depth: `enum-variant`, `field`, `macro` kinds; `--name` substring matches become a fallback. |
+| 1.22.0  | 2026-09-20 | `zurdo lumen query`; `zurdo mcp serve`; `preflight_pass` for resumed short-circuits; `run-diff.patch` baseline header. |
 | 1.21.0  | 2026-09-01 | Completion gate (`[verification] completion_command`, exit `9`); lesson `requires` obligations and the `unaddressed-lesson` lint. |
 | 1.20.0  | 2026-08-25 | `zurdo-design-author` bundled skill; cold-init performance gate samples best-of-5. |
 | 1.19.0  | 2026-08-25 | `zurdo-lessons` and `zurdo-domain` discipline skills; orchestrator skills marked model-uninvocable. |

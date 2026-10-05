@@ -126,7 +126,7 @@ Multiple hints on one criterion are AND'd — all must pass:
 - [ ] the build succeeds and emits the binary [shell: cargo build] [file-exists: target/debug/zurdo]
 ```
 
-All seven core hint types, their semantics, and the common authoring pitfalls are on the [Hints reference](hints.md) page. With `[lumen] enabled = true` there are three more — the `[symbol:]`/`[references:]`/`[callers:]` hints that verify code facts by static analysis; see [Structural verification](lumen.md).
+All seven core hint types, their semantics, and the common authoring pitfalls are on the [Hints reference](hints.md) page. With `[lumen] enabled = true` there are three more — the `[symbol:]`/`[references:]`/`[callers:]` hints that verify code facts by static analysis; see [Structural verification](lumen.md). Before writing one, `zurdo lumen query --name <name>` shows the exact kind and qualified name the index records, so the hint resolves on the first try.
 
 ## Rule 5: effort values come from your config, not a fixed enum
 

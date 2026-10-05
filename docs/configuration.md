@@ -80,6 +80,15 @@ gc_grace_minutes = 10
 
 [vela]                            # background index watcher — off by default
 enabled = false
+
+[mcp]                             # hand zurdo's MCP server to the executor — off by default
+inject_server        = false      # also requires [lumen] enabled = true
+strict_claude_config = false      # claude only: --strict-mcp-config hides your other servers
+
+[mcp.adapters]                    # per-provider injection gates
+anthropic = true
+codex     = true
+copilot   = false                 # org policy can block third-party MCP servers there
 ```
 
 ## Roles
@@ -196,6 +205,20 @@ Since **v1.9.0** `lumen.enabled` is the *only* switch the `[symbol:]`/`[referenc
 | `vela.debounce_ms`   | Debounce window coalescing bursty filesystem events.         | `200`   |
 
 Manage it explicitly with `zurdo vela serve|start|stop|status`; `zurdo lumen status` also reports the watcher's state. Full daemon semantics are on [Structural verification](lumen.md#the-vela-watcher).
+
+## MCP server injection
+
+`[mcp]` (v1.24.0) lets `zurdo run` register [`zurdo mcp serve`](mcp.md) with the executor it launches, so the agent can query the structural index during the run instead of re-reading the tree:
+
+| Key                         | Meaning                                                                                       | Default |
+| --------------------------- | ---------------------------------------------------------------------------------------------- | ------- |
+| `mcp.inject_server`         | Master switch. Fires only when `[lumen] enabled = true` too.                                   | `false` |
+| `mcp.strict_claude_config`  | Also pass `--strict-mcp-config` to `claude`, which ignores every other MCP server you configured. | `false` |
+| `mcp.adapters.anthropic`    | Inject into the `claude` executor.                                                            | `true`  |
+| `mcp.adapters.codex`        | Inject into the `codex` executor.                                                             | `true`  |
+| `mcp.adapters.copilot`      | Inject into the `copilot` executor. Off because an organization's Copilot policy can block third-party MCP servers. | `false` |
+
+With injection off, the executor's command line is exactly what it was before the feature existed. A registration that can't be written is a warning; the run continues without it. Per-provider spellings and the server's tools are on [Agent access (MCP)](mcp.md).
 
 ## Reason: diagnosis and lessons
 
