@@ -1,5 +1,11 @@
+{% comment %}The sidebar for one product. The layout assigns docs_nav (the groups)
+and docs_product (zurdo or carol) before including this.{% endcomment %}
 <nav class="lp-sidenav">
-	{% for group in site.data.docs_nav %}
+	<div class="lp-sidenav__products" role="group" aria-label="Product">
+		<a class="lp-sidenav__product" href="{{ '/docs/how-it-works.html' | relative_url }}"{% if docs_product == 'zurdo' %} aria-current="true"{% endif %}>zurdo</a>
+		<a class="lp-sidenav__product" href="{{ '/carol/' | relative_url }}"{% if docs_product == 'carol' %} aria-current="true"{% endif %}>Carol</a>
+	</div>
+	{% for group in docs_nav %}
 		<p class="lp-sidenav__heading">{{ group.title }}</p>
 		<ul class="lp-sidenav__list">
 			{% for item in group.items %}

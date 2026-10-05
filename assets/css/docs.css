@@ -46,6 +46,33 @@
 }
 .lp-sidebar__crumb { color: var(--muted); font-weight: 400; }
 
+/* Product switch: zurdo | Carol, above the product's groups */
+.lp-sidenav__products {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 20px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--default);
+}
+.lp-sidenav__product {
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: center;
+  text-decoration: none;
+}
+.lp-sidenav__product:hover { color: var(--foreground); }
+.lp-sidenav__product[aria-current="true"] {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
 .lp-sidenav__heading {
   margin: 20px 0 6px;
   color: var(--muted);

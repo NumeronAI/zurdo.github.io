@@ -251,3 +251,4 @@ When the repo has a [lesson library](reason.md), the author and debugger skills 
 - **No git automation.** Zurdo never commits, branches, or opens PRs.
 - **No API keys.** Zurdo drives provider CLIs already on your `PATH`, using your existing auth.
 - **No trusting the agent.** Agent output is saved for the audit trail, but only zurdo's own checks decide pass or fail.
+- **No issue tracker.** Zurdo never touches GitHub issues or boards. Its companion, [Carol](../carol/index.md), mirrors your planning files and zurdo's run state onto GitHub, reading only zurdo's published JSON.

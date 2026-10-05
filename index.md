@@ -107,6 +107,23 @@ quickstart:
       zurdo report prds/hello.md     # JSON by default; --format md for markdown
       zurdo state list               # every .zurdo/<slug>/ at this repo root
 
+carol:
+  eyebrow: Companion · Carol
+  title: The loop, mirrored on your tracker.
+  body: Carol is zurdo's project-management companion. It projects an initiative's scope, research tickets, and PRDs onto GitHub issues and a Projects board, then syncs each zurdo run's outcome back onto them. It shows a plan first and writes only with --apply.
+  install: brew install ElOrlis/zurdo/carol
+  cta: Meet Carol
+  url: /carol/
+  steps:
+    - zurdo: Scope
+      carol: carol scope <scope.md>
+    - zurdo: Author the PRD
+      carol: carol publish <prd>
+    - zurdo: zurdo run
+      carol: carol status
+    - zurdo: zurdo report
+      carol: carol sync <prd>
+
 principles:
   - tag: Provider-agnostic
     title: No SDKs, no API keys

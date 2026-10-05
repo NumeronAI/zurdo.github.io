@@ -127,6 +127,20 @@ gantt
 
 Implementation time drops out of the equation, and that's the gain, not agent speed. A chat workflow costs your attention every iteration. Here you spend it once on the design and once on the verdict, and you can batch each: design in one block, review in another.
 
+## Tracking the loop with Carol
+
+The loop above is one PRD at a time. When the work spans several PRDs, or teammates follow it on GitHub, [Carol](../carol/index.md) keeps the tracker in step at each edge of the loop, so nobody copies run results into issues by hand:
+
+| Phase | Carol |
+|---|---|
+| 1 · Scope | `carol scope` mirrors the initiative's `scope.md` and research tickets as issues. See [Initiatives](../carol/initiatives.md). |
+| 2 · Author | `carol publish` turns the PRD into an epic and one issue per task. `carol board` puts them on a board. |
+| 4 · Run | `carol status` shows the phase as *in flight*, or *crashed* if the run died |
+| 5 · Review | `carol sync` posts each task's outcome, labels failures with their failing hints, and closes what passed |
+| 6 · Decide | `carol status` flags phases whose status disagrees with their tickets. `carol score --report` puts run outcomes beside the PRD's lint warnings. |
+
+Carol only mirrors the loop. It never runs zurdo and never decides anything, and every write waits for `--apply`. See [GitHub sync](../carol/github-sync.md).
+
 ## Practical notes
 
 - **Validate every PRD**, even ones you're sure about. You're most tempted to skip it when rushing, which is exactly when it catches something.

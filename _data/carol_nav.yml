@@ -1,0 +1,30 @@
+# Carol docs navigation: the docs sidebar on /carol/ pages and the Carol group
+# of the landing page directory. Order is reading order; keep it in sync with
+# each page's page_nav chain.
+- title: Carol
+  items:
+    - title: Overview
+      excerpt: What Carol does, and how it fits around the zurdo loop.
+      url: /carol/
+    - title: Installation
+      excerpt: Homebrew, release tarballs, and the gh login Carol needs.
+      url: /carol/installation.html
+    - title: Initiatives
+      excerpt: scope.md, tickets, PRDs, and the handoff — the files Carol reads.
+      url: /carol/initiatives.html
+- title: Carol in practice
+  items:
+    - title: GitHub sync
+      excerpt: Plan, apply, markers, and how zurdo run state lands on issues.
+      url: /carol/github-sync.html
+    - title: Status & handoffs
+      excerpt: The initiative map, run state, and a handoff's freshness.
+      url: /carol/status.html
+    - title: Triage & scoring
+      excerpt: Area labels for filed issues, and run outcomes beside lint warnings.
+      url: /carol/triage.html
+- title: Carol reference
+  items:
+    - title: Commands & configuration
+      excerpt: Every command and flag, .carol/config.toml, and exit codes.
+      url: /carol/commands.html

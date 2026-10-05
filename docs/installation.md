@@ -128,3 +128,13 @@ Doctor exits `4` on anything that would stop a run and `0` when its findings are
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 ```
 </div>
+
+## Optional: Carol, for project management
+
+[Carol](../carol/index.md) is zurdo's companion CLI. It mirrors initiatives, PRDs, and run outcomes onto GitHub issues and a Projects board. It installs from the same tap:
+
+```sh
+brew install ElOrlis/zurdo/carol
+```
+
+See [Carol's installation](../carol/installation.md) for tarballs and the `gh` login it needs.

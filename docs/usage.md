@@ -275,7 +275,7 @@ On a TTY, you approve each verified heal (`y/N`) and the PRD is edited in place.
 
 ## CI integration
 
-Exit codes are designed for branching from a shell wrapper. The full table is in [Commands](commands.md#exit-codes).
+Exit codes are designed for branching from a shell wrapper. The full table is in [Commands](commands.md#exit-codes). If your team tracks work on GitHub, end the wrapper with [`carol sync <prd> --apply`](../carol/github-sync.md#carol-sync) so each task's outcome lands on its issue.
 
 ```sh
 #!/usr/bin/env bash

@@ -230,6 +230,7 @@ The two flags are mutually exclusive. The check reads the *committed* PRD, not t
 
 - **Rendering only:** stdout is a single document and diagnostics stay on stderr. Parse and validation failures are reported *inside* the payload, and exit codes are identical to text mode.
 - **Own formats:** `report` and `doctor` have their own JSON shapes. `report --format json` is the default and evolves independently. `doctor --format json` carries every section.
+- **Consumers:** [Carol](../carol/index.md#what-carol-reads-from-zurdo) reads `report`, `state list`, and `validate --authoring-state` through these formats, never `.zurdo/` directly.
 
 ## `zurdo analyze` — pre-flight analysis
 

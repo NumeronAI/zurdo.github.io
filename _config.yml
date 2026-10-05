@@ -32,11 +32,20 @@ zurdo:
           url: /docs/writing-prds.html
         - title: Commands
           url: /docs/commands.html
+        - title: Carol
+          url: /carol/
     support:
         - label: Report a zurdo bug or request a feature
           url: https://github.com/ElOrlis/zurdo-dist/issues
+        - label: Report a Carol bug or request a feature
+          url: https://github.com/ElOrlis/carol-dist/issues
         - label: Give documentation feedback
           url: https://github.com/NumeronAI/zurdo.github.io/issues
+
+# --- Carol, zurdo's project-management companion (pages under /carol/) ---
+carol:
+    version: v0.1.2 # the released Carol version the /carol/ pages describe
+    dist: https://github.com/ElOrlis/carol-dist
 
 # Jekyll settings
 layouts_dir: ./doks-theme/_layouts

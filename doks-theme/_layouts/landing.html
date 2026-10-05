@@ -145,7 +145,39 @@
 				</div>
 			</section>
 
-			<section class="lp-section lp-section--tinted" aria-labelledby="docs-title">
+			{% assign carol = page.carol %}
+			<section class="lp-section lp-section--tinted" aria-labelledby="carol-title">
+				<div class="lp-container lp-throughput">
+					<div>
+						<p class="lp-eyebrow">{{ carol.eyebrow }}</p>
+						<h2 id="carol-title" class="lp-section__title">{{ carol.title }}</h2>
+						<p class="lp-section__lead">{{ carol.body }}</p>
+						<div class="lp-install lp-install--inline">
+							<span class="lp-install__prompt" aria-hidden="true">$</span>
+							<code class="lp-install__cmd">{{ carol.install }}</code>
+							<button class="button button--ghost button--icon-only button--sm" type="button" data-copy="{{ carol.install | escape }}" aria-label="Copy Carol install command">
+								{% include zurdo-copy-icons.html %}
+							</button>
+						</div>
+						<a class="button button--secondary" href="{{ carol.url | relative_url }}">{{ carol.cta }}</a>
+					</div>
+					<div class="card card--default lp-pair">
+						<p class="lp-equation__label">One loop, two tools</p>
+						<ol class="lp-pair__list">
+							{% for step in carol.steps %}
+								<li class="lp-pair__row">
+									<span class="lp-pair__zurdo">{{ step.zurdo | escape }}</span>
+									<code class="lp-pair__carol">{{ step.carol | escape }}</code>
+								</li>
+							{% endfor %}
+						</ol>
+						<div class="separator separator--horizontal"></div>
+						<p class="card__description">Carol {{ site.carol.version }} · zurdo {{ site.zurdo.version }}. Files stay canonical; GitHub is a one-way projection.</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="lp-section" aria-labelledby="docs-title">
 				<div class="lp-container">
 					<div class="lp-section__head">
 						<p class="lp-eyebrow">Documentation</p>
@@ -168,11 +200,27 @@
 								</ul>
 							</div>
 						{% endfor %}
+						<div class="lp-docs__group">
+							<h3 class="lp-docs__heading">Carol</h3>
+							<ul class="lp-docs__list">
+								{% for group in site.data.carol_nav %}
+									{% for item in group.items %}
+										<li>
+											<a class="lp-doc" href="{{ item.url | relative_url }}">
+												<span class="lp-doc__title">{{ item.title }}</span>
+												<span class="lp-doc__excerpt">{{ item.excerpt | escape }}</span>
+												<svg class="lp-doc__arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+											</a>
+										</li>
+									{% endfor %}
+								{% endfor %}
+							</ul>
+						</div>
 					</div>
 				</div>
 			</section>
 
-			<section class="lp-section" aria-labelledby="principles-title">
+			<section class="lp-section lp-section--tinted" aria-labelledby="principles-title">
 				<div class="lp-container">
 					<div class="lp-section__head">
 						<p class="lp-eyebrow">By design</p>
