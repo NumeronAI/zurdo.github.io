@@ -100,7 +100,7 @@ zurdo analyze prds/feature.md --fix   # refinement loop → <prd>.proposed.md
 <div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo validate</span></div>
 <pre class="lp-terminal__body"><code><span class="t-dim">$</span> zurdo validate prds/bad.md
 <span class="t-bad">prds/bad.md:14: task heading uses en-dash (U+2013) where an em-dash (U+2014) is required</span>
-<span class="t-dim">$ echo $?</span>
+<span class="t-dim">$</span> echo $?
 2
 <span class="t-dim">$</span> zurdo validate prds/greeter.md
 <span class="t-warn">prds/greeter.md:12: warning: task `task-greet` grep pattern `hello` already matches `main.rs` in the current working tree — the criterion may not prove the change</span>
@@ -152,20 +152,21 @@ The repo is an axum web service, and the feature rate-limits `/login`.
 | **7 · Review** | `task-wire-login` sat at `passed-pending-review`. `zurdo review` showed the scope held: two new files, two touched, ADRs untouched. The error copy needed one hand edit. `zurdo verify` re-confirmed, then the sign-off flipped the task to `passed`. |
 | **8 · Ship** | A branch, a commit, and a PR description you write yourself, informed by the evidence zurdo left. |
 
-```
-─── task-limiter: Fixed-window rate limiter middleware ─── effort=medium, deps=[]
-  → iteration 1 of 5
-  ✓ agent completed: exit=0, 3m 51s
-  → running 3 criteria
-    ✓ shell: cargo test rate_limit:: (9.2s)
-    ✓ grep: rate_limit in src/config.rs
-    ✗ no-grep: Duration::from_secs\(60\) in src/middleware/rate_limit.rs
-      pattern found — window is hard-coded
-  iteration 1: 2/3 criteria passed; will retry
-  → iteration 2 of 5
-  ...
-  ✓ task-limiter: passed in 2 iterations (7m 03s)
-```
+<figure class="lp-terminal" aria-label="zurdo run output: the no-grep hint catches a hard-coded window in iteration 1 and iteration 2 fixes it">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo run prds/rate-limit.md</span></div>
+<pre class="lp-terminal__body"><code><span class="t-dim">─── task-limiter: Fixed-window rate limiter middleware ─── effort=medium, deps=[]</span>
+  <span class="t-acc">→</span> iteration 1 of 5
+  <span class="t-ok">✓</span> agent completed: exit=0, 3m 51s
+  <span class="t-acc">→</span> running 3 criteria
+    <span class="t-ok">✓</span> shell: cargo test rate_limit:: <span class="t-dim">(9.2s)</span>
+    <span class="t-ok">✓</span> grep: rate_limit in src/config.rs
+    <span class="t-bad">✗</span> no-grep: Duration::from_secs\(60\) in src/middleware/rate_limit.rs
+      <span class="t-dim">pattern found — window is hard-coded</span>
+  <span class="t-warn">iteration 1: 2/3 criteria passed; will retry</span>
+  <span class="t-acc">→</span> iteration 2 of 5
+  <span class="t-dim">...</span>
+  <span class="t-ok">✓ task-limiter: passed in 2 iterations</span> <span class="t-dim">(7m 03s)</span></code></pre>
+</figure>
 
 The agent reported success after iteration 1, and zurdo never consulted that claim. The retry prompt carried the exact failure, so iteration 2 fixed the real defect.
 
@@ -227,8 +228,8 @@ Retry-After header.
 | AI Fluency "D" | Steps | The habit |
 | --- | --- | --- |
 | Delegation | 1–2 | Research first. Give the loop outcomes it can verify, and keep the judgment calls yourself. |
-| Description | 3 | Write evidence first with `zurdo-prd-author`, with the hint before the prose |
-| Discernment | 4–5, 7 | `validate` and `analyze` before you spend, then read the diff and provenance after |
+| Description | 3 | Write evidence first with `zurdo-prd-author`, with the hint before the prose. |
+| Discernment | 4–5, 7 | `validate` and `analyze` before you spend, then read the diff and provenance after. |
 | Diligence | 8 | You commit and you answer for it. Zurdo makes sure the evidence is real. |
 
 Next: [Writing PRDs](writing-prds.md)
