@@ -93,52 +93,48 @@ stateDiagram-v2
 
 Each PRD's state lives at `.zurdo/<slug>/` under the repo root. The slug is deterministic: `zurdo state where <prd>` prints it.
 
-```
-.zurdo/
-├── config.toml            # providers, effort map, defaults
-└── <slug>/
-    ├── prd.json           # source of truth
-    ├── progress.log       # JSONL event stream
-    ├── run-diff.patch     # everything the run changed
-    ├── iterations/        # <task>-<n>.prompt / .out / .err per attempt
-    └── reports/           # <timestamp>.json / .md
-lessons/                   # lesson library — repo root, committed
-```
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.zurdo/
+├── config.toml            <span class="c"># providers, effort map, defaults</span>
+└── &lt;slug&gt;/
+    ├── prd.json           <span class="c"># source of truth</span>
+    ├── progress.log       <span class="c"># JSONL event stream</span>
+    ├── run-diff.patch     <span class="c"># everything the run changed</span>
+    ├── iterations/        <span class="c"># &lt;task&gt;-&lt;n&gt;.prompt / .out / .err per attempt</span>
+    └── reports/           <span class="c"># &lt;timestamp&gt;.json / .md</span>
+lessons/                   <span class="c"># lesson library — repo root, committed</span></code></pre></div></div>
 
 Every agent call leaves an audit trail: the exact prompt and the agent's stdout and stderr, for each task and attempt.
 
 <details markdown="1">
 <summary>Full layout, including repo-scoped paths</summary>
 
-```
-.zurdo/
-├── config.toml                      # provider config, effort map, defaults
-├── lumen/                           # optional structural code index (repo-scoped)
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.zurdo/
+├── config.toml                      <span class="c"># provider config, effort map, defaults</span>
+├── lumen/                           <span class="c"># optional structural code index (repo-scoped)</span>
 ├── reason/
-│   └── usage.json                   # lesson use counts (repo-scoped)
-└── <slug>/                          # <basename>-<sha1(repo-relative-path)[0..4]>
-    ├── prd.json                     # terminal source of truth, atomic writes
-    ├── progress.log                 # append-only JSONL event stream
-    ├── lock                         # pid + ISO-8601 start time
-    ├── baseline                     # run-start snapshot + the current task's baseline tree (JSON)
-    ├── baseline.index               # scratch git index used by baseline capture
-    ├── baseline-diff.index          # scratch git index used by baseline comparison
-    ├── run-diff.patch               # unified diff of agent edits across the run
-    ├── review-log.jsonl             # [manual] sign-off chain written by zurdo review
-    ├── heal-log.jsonl               # hash chain of accepted heals
+│   └── usage.json                   <span class="c"># lesson use counts (repo-scoped)</span>
+└── &lt;slug&gt;/                          <span class="c"># &lt;basename&gt;-&lt;sha1(repo-relative-path)[0..4]&gt;</span>
+    ├── prd.json                     <span class="c"># terminal source of truth, atomic writes</span>
+    ├── progress.log                 <span class="c"># append-only JSONL event stream</span>
+    ├── lock                         <span class="c"># pid + ISO-8601 start time</span>
+    ├── baseline                     <span class="c"># run-start snapshot + the current task's baseline tree (JSON)</span>
+    ├── baseline.index               <span class="c"># scratch git index used by baseline capture</span>
+    ├── baseline-diff.index          <span class="c"># scratch git index used by baseline comparison</span>
+    ├── run-diff.patch               <span class="c"># unified diff of agent edits across the run</span>
+    ├── review-log.jsonl             <span class="c"># [manual] sign-off chain written by zurdo review</span>
+    ├── heal-log.jsonl               <span class="c"># hash chain of accepted heals</span>
     ├── iterations/
-    │   ├── <task-id>-<attempt>.out
-    │   ├── <task-id>-<attempt>.err
-    │   └── <task-id>-<attempt>.prompt
-    ├── analyze-iterations/          # audit trail of zurdo analyze --fix
-    ├── reason/                      # this run's diagnosis blocks
+    │   ├── &lt;task-id&gt;-&lt;attempt&gt;.out
+    │   ├── &lt;task-id&gt;-&lt;attempt&gt;.err
+    │   └── &lt;task-id&gt;-&lt;attempt&gt;.prompt
+    ├── analyze-iterations/          <span class="c"># audit trail of zurdo analyze --fix</span>
+    ├── reason/                      <span class="c"># this run's diagnosis blocks</span>
     ├── reports/
-    │   └── <timestamp>.{json,md}
-    └── .archive/<ts>/               # prior state, kept by --reset
+    │   └── &lt;timestamp&gt;.{json,md}
+    └── .archive/&lt;ts&gt;/               <span class="c"># prior state, kept by --reset</span>
 
-lessons/                             # the lesson library — at the repo root, git-tracked
-└── lesson-<hash8>.md
-```
+lessons/                             <span class="c"># the lesson library — at the repo root, git-tracked</span>
+└── lesson-&lt;hash8&gt;.md</code></pre></div></div>
 
 `.zurdo/lumen/` (the [Lumen index](lumen.md)), `lessons/`, and `.zurdo/reason/usage.json` belong to the whole repo rather than one PRD, and lessons apply to every PRD. `zurdo run --reset` archives only the slug's state, and these paths survive it.
 
@@ -225,12 +221,13 @@ These are provenance signals, not policy: they don't change exit codes or status
 | Ctrl-C once | Finishes the current iteration, prints the summary, and resumes cleanly next time | — |
 | Ctrl-C twice | Hard kill. The in-flight iteration is dropped on resume and doesn't count as an attempt. | — |
 
-```
-What would you like to do?
-  [R] Resume from current state           (default)
-  [X] Reset — archive state and start over
-  [A] Abort
-```
+<figure class="lp-terminal" aria-label="zurdo run prompt offering to resume, reset, or abort when state already exists">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo run prds/greeter.md</span></div>
+<pre class="lp-terminal__body"><code>What would you like to do?
+  <span class="t-acc">[R]</span> Resume from current state           <span class="t-dim">(default)</span>
+  <span class="t-acc">[X]</span> Reset — archive state and start over
+  <span class="t-acc">[A]</span> Abort</code></pre>
+</figure>
 
 The prompt is skipped and defaults to *Resume* when stdin isn't a TTY, or when you pass `--resume`, `--reset`, or `--no-prompt`. Reset moves the old state to `.zurdo/<slug>/.archive/<ts>/`.
 
