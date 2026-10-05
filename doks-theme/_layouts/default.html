@@ -1,120 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 	<head>
-		{% include site-head.html %}
+		{% include zurdo-head.html css='/assets/css/docs.css' %}
 	</head>
-	<body class="{{ site.doks.color_theme }}" data-spy="scroll" data-target=".js-scrollspy">
-		{% include site-header.html %}
-		<div class="hero-subheader">
-			<div class="container">
-				<div class="row">
-					<div class="col-md-7">
-						<div class="align-container" data-mh>
-							<div class="align-inner">
-								{% if page.title %}
-									<h1 class="hero-subheader__title">{{ page.title }}</h1>
-								{% endif %}
-								{% if page.description %}
-									<p class="hero-subheader__desc">{{ page.description }}</p>
-								{% endif %}
-								{% if page.page_nav.prev.content or page.page_nav.next.content %}
-									{% if page.page_nav.prev.content and page.page_nav.prev.url %}
-										<a href="{% if jekyll.environment == 'production' %}{{ site.doks.baseurl }}{% endif %}{{ page.page_nav.prev.url }}" class="btn btn--dark btn--rounded btn--w-icon btn--w-icon-left">
-											<i class="icon icon--arrow-left"></i>
-											{{ page.page_nav.prev.content }}
-										</a>
-									{% endif %}
-									{% if page.page_nav.next.content and page.page_nav.next.url %}
-										<a href="{% if jekyll.environment == 'production' %}{{ site.doks.baseurl }}{% endif %}{{ page.page_nav.next.url }}" class="btn btn--dark btn--rounded btn--w-icon">
-											<i class="icon icon--arrow-right"></i>
-											{{ page.page_nav.next.content }}
-										</a>
-									{% endif %}
-								{% endif %}
-							</div><!-- /.align-inner -->
-						</div><!-- /.align-container -->
-					</div><!-- /.col -->
-					{% if page.author.title and page.author.description and page.author.title_url %}
-						<div class="col-md-4 col-md-offset-1 hidden-xs hidden-sm">
-							<div class="align-container" data-mh>
-								<div class="align-inner">
-									<div class="hero-subheader__author">
-										<p class="hero-subheader__author-title">
-											{% if button.external_url == true %}
-											<a href="{{ page.author.title_url }}" class="btn btn--read-more">
-												{{ page.author.title }}
-												<i class="icon icon--arrow-right"></i>
-											</a>
-											{% else %}
-											<a href="{% if jekyll.environment == 'production' %}{{ site.doks.baseurl }}{% endif %}{{ page.author.title_url }}" class="btn btn--read-more">
-												{{ page.author.title }}
-												<i class="icon icon--arrow-right"></i>
-											</a>
-											{% endif %}
-										</p><!-- /.hero-subheader__author-title -->
-										<p>{{ page.author.description }}</p>
-									</div><!-- /.hero-subheader__author -->
-								</div><!-- /.align-inner -->
-							</div><!-- /.align-container -->
-						</div><!-- /.col -->
-					{% endif %}
-				</div><!-- /.row -->
-			</div><!-- /.container -->
-		</div><!-- /.hero-subheader -->
-		<div class="section">
-			<div class="container">
-				<div class="row">
-					<div class="col-md-7">
-						<div class="content">
-							{{ content }}
-						</div><!-- /.content -->
-					</div><!-- /.col -->
-					<div class="col-md-4 col-md-offset-1">
-						<div class="sections-list-wrapper">
-							<div class="sections-list js-sections js-affix js-scrollspy hidden-xs hidden-sm"></div><!-- /.sections-list -->
-						</div>
-					</div><!-- /.col -->
-				</div><!-- /.row -->
-			</div><!-- /.container -->
-		</div><!-- /.section -->
-		{% if jekyll.environment == "production" and page.comments == true and site.doks.comments.disqus_forum_shortname %}
-			<div class="section section--grey">
-				<div class="container">
-					<div class="row">
-						<div class="col-md-7">
-							{% include comments.html %}
-						</div><!-- /.col -->
-					</div><!-- /.row -->
-				</div><!-- /.container -->
-			</div><!-- /.section -->
+	<body class="lp lp-docs-page">
+		{% include zurdo-header.html wide=true %}
+
+		{% assign current_group = nil %}
+		{% for group in site.data.docs_nav %}
+			{% for item in group.items %}
+				{% if item.url == page.url %}{% assign current_group = group.title %}{% endif %}
+			{% endfor %}
+		{% endfor %}
+
+		<div class="lp-container lp-container--wide lp-doc-shell">
+			<aside class="lp-sidebar" aria-label="Documentation">
+				<details class="lp-sidebar__toggle" data-sidebar>
+					<summary class="button button--outline button--sm">
+						<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+						Docs menu{% if current_group %} <span class="lp-sidebar__crumb">· {{ current_group }}</span>{% endif %}
+					</summary>
+					{% include zurdo-docs-nav.html %}
+				</details>
+				<div class="lp-sidebar__static">
+					{% include zurdo-docs-nav.html %}
+				</div>
+			</aside>
+
+			<main id="main" class="lp-doc">
+				<header class="lp-doc__header">
+					{% if current_group %}<p class="lp-eyebrow">{{ current_group }}</p>{% endif %}
+					<h1 class="lp-doc__title">{{ page.title }}</h1>
+					{% if page.description %}<p class="lp-doc__lead">{{ page.description }}</p>{% endif %}
+				</header>
+
+				<article class="lp-prose" data-prose>
+					{{ content }}
+				</article>
+
+				{% if page.page_nav.prev.url or page.page_nav.next.url %}
+					<nav class="lp-pager" aria-label="Previous and next pages">
+						{% if page.page_nav.prev.url %}
+							<a class="card card--default lp-pager__item" href="{{ page.page_nav.prev.url | relative_url }}" rel="prev">
+								<span class="lp-pager__dir">← Previous</span>
+								<span class="lp-pager__title">{{ page.page_nav.prev.content }}</span>
+							</a>
+						{% else %}<span></span>{% endif %}
+						{% if page.page_nav.next.url %}
+							<a class="card card--default lp-pager__item lp-pager__item--next" href="{{ page.page_nav.next.url | relative_url }}" rel="next">
+								<span class="lp-pager__dir">Next →</span>
+								<span class="lp-pager__title">{{ page.page_nav.next.content }}</span>
+							</a>
+						{% endif %}
+					</nav>
+				{% endif %}
+
+				<div class="lp-doc__meta">
+					<a class="link" href="{{ site.zurdo.repo }}/blob/main/{{ page.path }}">Edit this page on GitHub</a>
+					<span>Describes zurdo {{ site.zurdo.version }}</span>
+				</div>
+			</main>
+
+			<aside class="lp-toc" aria-label="On this page" data-toc hidden>
+				<p class="lp-toc__title">On this page</p>
+				<ol class="lp-toc__list" data-toc-list></ol>
+			</aside>
+		</div>
+
+		{% include zurdo-footer.html wide=true %}
+
+		{% if page.mermaid %}
+			<script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
+			<script>
+				document.querySelectorAll('div.language-mermaid, pre > code.language-mermaid').forEach(function (el) {
+					var block = el.closest('div.language-mermaid') || el.closest('pre');
+					var graph = document.createElement('div');
+					graph.className = 'mermaid';
+					graph.textContent = el.textContent;
+					block.replaceWith(graph);
+				});
+				mermaid.initialize({
+					startOnLoad: true,
+					theme: document.documentElement.classList.contains('dark') ? 'dark' : 'neutral',
+					fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif'
+				});
+			</script>
 		{% endif %}
-		<div class="js-footer-area">
-			{% if page.page_nav.prev.content or page.page_nav.next.content %}
-				<nav class="page-nav">
-					<div class="container">
-						<div class="row">
-							<div class="col-xs-12">
-								{% if page.page_nav.prev.content and page.page_nav.prev.url %}
-									<a href="{% if jekyll.environment == 'production' %}{{ site.doks.baseurl }}{% endif %}{{ page.page_nav.prev.url }}" class="page-nav__item page-nav__item--prev">
-										<i class="icon icon--arrow-left"></i>
-										{{ page.page_nav.prev.content }}
-									</a><!-- /.page-nav__item -->
-								{% endif %}
-								{% if page.page_nav.next.content and page.page_nav.next.url %}
-									<a href="{% if jekyll.environment == 'production' %}{{ site.doks.baseurl }}{% endif %}{{ page.page_nav.next.url }}" class="page-nav__item page-nav__item--next">
-										{{ page.page_nav.next.content }}
-										<i class="icon icon--arrow-right"></i>
-									</a><!-- /.page-nav__item -->
-								{% endif %}
-							</div><!-- /.col -->
-						</div><!-- /.row -->
-					</div><!-- /.container -->
-				</nav><!-- /.page-nav -->
-			{% endif %}
-			{% if page.micro_nav == true %}
-				{% include micro-nav.html %}
-			{% endif %}
-			{% include site-footer.html %}
-		</div><!-- /.js-footer-area -->
 	</body>
 </html>

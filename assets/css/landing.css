@@ -1,135 +1,4 @@
-/* Landing page (layout: landing). Built on HeroUI v3's compiled styles
-   (assets/vendor/heroui) — this file adds the zurdo brand and page layout. */
-
-/* ---------- Brand tokens over HeroUI's theme ---------- */
-:root {
-  --accent: oklch(0.58 0.235 285);            /* #7C5CFF, the logo's violet */
-  --accent-foreground: var(--snow);
-  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 0.625rem;
-
-  --lp-max: 1160px;
-  --lp-gutter: clamp(16px, 4vw, 32px);
-  --lp-glow: oklch(0.58 0.235 285 / 0.14);
-  --lp-term-bg: oklch(0.19 0.012 285);
-  --lp-term-fg: oklch(0.93 0.005 285);
-  --lp-term-dim: oklch(0.66 0.015 285);
-}
-
-.dark,
-[data-theme="dark"] {
-  --accent: oklch(0.66 0.2 287);              /* #8B6CFF, the favicon's violet */
-  --lp-glow: oklch(0.66 0.2 287 / 0.18);
-  --lp-term-bg: oklch(0.16 0.008 285);
-}
-
-/* ---------- Base ---------- */
-html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-
-body.lp {
-  margin: 0;
-  padding: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-}
-
-.lp code, .lp pre { font-family: var(--font-mono); }
-.lp :not(pre) > code {
-  font-size: 0.9em;
-  padding: 0.1em 0.35em;
-  border-radius: calc(var(--radius) * 0.6);
-  background: var(--default);
-}
-.lp svg { flex-shrink: 0; }
-
-.lp-container {
-  width: 100%;
-  max-width: var(--lp-max);
-  margin-inline: auto;
-  padding-inline: var(--lp-gutter);
-  box-sizing: border-box;
-}
-
-.lp-skip {
-  position: absolute;
-  left: -9999px;
-  top: 8px;
-  z-index: 100;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-.lp-skip:focus { left: 8px; }
-
-.lp-accent { color: var(--accent); }
-
-/* ---------- Nav ---------- */
-.lp-nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  border-bottom: 1px solid var(--separator);
-  background: color-mix(in oklab, var(--background) 82%, transparent);
-  backdrop-filter: saturate(1.4) blur(12px);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
-}
-.lp-nav__inner {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  height: 64px;
-}
-.lp-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--foreground);
-  text-decoration: none;
-}
-.lp-brand__mark { width: 26px; height: 26px; }
-.lp-brand__name {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
-}
-.lp-nav__links {
-  display: flex;
-  gap: 4px;
-  margin-inline-start: 8px;
-}
-.lp-nav__link {
-  padding: 6px 10px;
-  border-radius: calc(var(--radius) * 1.5);
-  color: var(--muted);
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 120ms, background-color 120ms;
-}
-.lp-nav__link:hover { color: var(--foreground); background: var(--default); }
-.lp-nav__actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-inline-start: auto;
-}
-.lp-nav__cta { margin-inline-start: 6px; }
-
-[data-theme-toggle] .lp-icon-moon,
-.dark [data-theme-toggle] .lp-icon-sun { display: none; }
-.dark [data-theme-toggle] .lp-icon-moon { display: block; }
-
-@media (max-width: 860px) {
-  .lp-nav__links { display: none; }
-}
+/* Landing page (layout: landing) — loaded after site.css. */
 
 /* ---------- Hero ---------- */
 .lp-hero {
@@ -238,11 +107,6 @@ body.lp {
   font-size: 0.875rem;
 }
 
-/* Copy button feedback */
-.lp-copy-done { display: none; color: var(--success); }
-[data-copied] .lp-copy-idle { display: none; }
-[data-copied] .lp-copy-done { display: block; }
-
 /* Terminal */
 .lp-terminal {
   margin: 0;
@@ -325,15 +189,6 @@ body.lp {
   background: color-mix(in oklab, var(--surface) 55%, var(--background));
 }
 .lp-section__head { max-width: 40rem; margin-bottom: 40px; }
-.lp-eyebrow {
-  margin: 0 0 10px;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
 .lp-section__title {
   margin: 0;
   font-size: clamp(1.75rem, 3.4vw, 2.5rem);
@@ -557,47 +412,3 @@ body.lp {
 .lp-lineage p { margin: 0; }
 .lp-lineage a { color: var(--foreground); text-underline-offset: 3px; }
 
-/* ---------- Footer ---------- */
-.lp-footer {
-  padding-top: 56px;
-  border-top: 1px solid var(--separator);
-  background: color-mix(in oklab, var(--surface) 55%, var(--background));
-}
-.lp-footer__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 32px;
-}
-@media (max-width: 760px) { .lp-footer__grid { grid-template-columns: minmax(0, 1fr); } }
-.lp-footer__note {
-  max-width: 28rem;
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-.lp-footer__heading {
-  margin: 0 0 12px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-.lp-footer__list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.875rem;
-}
-.lp-footer__list .link { color: var(--muted); font-weight: 400; }
-.lp-footer__list .link:hover { color: var(--foreground); }
-.lp-footer__base {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 48px;
-  padding-block: 20px 28px;
-  border-top: 1px solid var(--separator);
-  color: var(--muted);
-  font-size: 0.8125rem;
-}

@@ -1,0 +1,10 @@
+<nav class="lp-sidenav">
+	{% for group in site.data.docs_nav %}
+		<p class="lp-sidenav__heading">{{ group.title }}</p>
+		<ul class="lp-sidenav__list">
+			{% for item in group.items %}
+				<li><a class="lp-sidenav__link" href="{{ item.url | relative_url }}"{% if item.url == page.url %} aria-current="page"{% endif %}>{{ item.title }}</a></li>
+			{% endfor %}
+		</ul>
+	{% endfor %}
+</nav>

@@ -1,20 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 	<head>
-		{% include site-head.html %}
+		{% include zurdo-head.html css='/assets/css/docs.css' %}
 	</head>
-	<body class="{{ site.doks.color_theme }} error-404">
-		<div class="align-container">
-			<div class="align-inner">
-				<h1 class="error-404__title">{{ page.page_content.title }}</h1>
-				{% if page.page_content.message %}
-					<p>{{ page.page_content.message }}</p>
-				{% endif %}
-				<a href="{% if jekyll.environment == 'production' %}{{ site.doks.baseurl }}{% endif %}/" class="btn btn--dark btn--rounded btn--w-icon btn--w-icon-left">
-					<i class="icon icon--home"></i>
-					Go back home
-				</a>
-			</div><!-- /.align-inner -->
-		</div><!-- /.align-container -->
+	<body class="lp">
+		{% include zurdo-header.html cta=true %}
+		<main id="main" class="lp-container lp-404">
+			<p class="lp-404__code">404</p>
+			<h1 class="lp-doc__title">Page not found</h1>
+			<p class="lp-doc__lead">{{ page.page_content.message }}</p>
+			<div class="lp-404__actions">
+				<a class="button button--primary" href="{{ '/' | relative_url }}">Go back home</a>
+				<a class="button button--outline" href="{{ '/docs/how-it-works.html' | relative_url }}">Browse the docs</a>
+			</div>
+		</main>
+		{% include zurdo-footer.html %}
 	</body>
 </html>

@@ -1,0 +1,33 @@
+<footer class="lp-footer">
+	<div class="lp-container{% if include.wide %} lp-container--wide{% endif %} lp-footer__grid">
+		<div>
+			<a class="lp-brand" href="{{ '/' | relative_url }}" aria-label="zurdo home">
+				{% include zurdo-mark.svg %}
+				<span class="lp-brand__name">zurdo</span>
+			</a>
+			<p class="lp-footer__note">{{ site.zurdo.license }}</p>
+		</div>
+		<div>
+			<h2 class="lp-footer__heading">Support</h2>
+			<ul class="lp-footer__list">
+				{% for link in site.zurdo.support %}
+					<li><a class="link" href="{{ link.url }}">{{ link.label }}</a></li>
+				{% endfor %}
+			</ul>
+		</div>
+		<div>
+			<h2 class="lp-footer__heading">Start here</h2>
+			<ul class="lp-footer__list">
+				{% for item in site.doks.header.nav %}
+					<li><a class="link" href="{{ item.item_url | relative_url }}">{{ item.item_name }}</a></li>
+				{% endfor %}
+			</ul>
+		</div>
+	</div>
+	<div class="lp-container{% if include.wide %} lp-container--wide{% endif %} lp-footer__base">
+		<span>{{ site.zurdo.copyright }}</span>
+		<span>Docs for zurdo {{ site.zurdo.version }}</span>
+	</div>
+</footer>
+<script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
+{% include google-analytics.html %}

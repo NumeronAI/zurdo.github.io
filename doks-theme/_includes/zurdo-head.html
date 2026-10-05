@@ -1,0 +1,26 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% seo %}
+{% if page.keywords %}<meta name="keywords" content="{{ page.keywords }}">{% endif %}
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="{{ '/favicon.svg' | relative_url }}" type="image/svg+xml">
+<link rel="icon" href="{{ '/favicon-192.png' | relative_url }}" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="{{ '/apple-touch-icon.png' | relative_url }}">
+<script>
+	// Resolve the theme before first paint: saved choice, else the OS setting.
+	(function () {
+		var theme;
+		try { theme = localStorage.getItem('zurdo-theme'); } catch (e) {}
+		if (theme !== 'light' && theme !== 'dark') {
+			theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+		}
+		document.documentElement.classList.toggle('dark', theme === 'dark');
+		document.documentElement.setAttribute('data-theme', theme);
+	})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="{{ '/assets/vendor/heroui/heroui-3.2.6.min.css' | relative_url }}">
+<link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+{% if include.css %}<link rel="stylesheet" href="{{ include.css | relative_url }}">{% endif %}

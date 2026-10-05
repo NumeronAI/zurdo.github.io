@@ -5,7 +5,6 @@ layout: landing
 title: zurdo
 keywords: zurdo, CLI, LLM, coding agents, PRD, verification loop
 permalink: /
-version: v1.25.0
 description: A CLI that drives LLM coding agents through a PRD's tasks on machine time — and independently verifies every acceptance criterion instead of trusting the agent's self-report.
 
 hero:
@@ -108,56 +107,6 @@ quickstart:
       zurdo report prds/hello.md     # JSON by default; --format md for markdown
       zurdo state list               # every .zurdo/<slug>/ at this repo root
 
-doc_groups:
-  - title: Start here
-    items:
-      - title: How it works
-        excerpt: The verification loop, state model, and crash recovery.
-        url: /docs/how-it-works.html
-      - title: Installation
-        excerpt: Homebrew, release tarballs, and prerequisites.
-        url: /docs/installation.html
-      - title: Usage
-        excerpt: Everyday workflows, run output, CI integration, troubleshooting.
-        url: /docs/usage.html
-      - title: The operating rhythm
-        excerpt: The loop you run zurdo in — and how it maps onto agile.
-        url: /docs/workflow.html
-      - title: Effective use
-        excerpt: The research → PRD → run pipeline, framed with the AI Fluency 4Ds.
-        url: /docs/effective-use.html
-  - title: Verification
-    items:
-      - title: Writing PRDs
-        excerpt: The PRD grammar and its load-bearing rules.
-        url: /docs/writing-prds.html
-      - title: Hints reference
-        excerpt: The seven core hint types and the three structural hints.
-        url: /docs/hints.html
-      - title: Structural verification
-        excerpt: The Lumen code index, structural hints, querying, and Vela.
-        url: /docs/lumen.html
-      - title: Agent access (MCP)
-        excerpt: Serve the code index and run state to coding agents over MCP.
-        url: /docs/mcp.html
-      - title: Diagnosis & lessons
-        excerpt: Stall detection, reasoner verdicts, and the lesson library.
-        url: /docs/reason.html
-  - title: Reference
-    items:
-      - title: Commands
-        excerpt: Full command and flag reference, exit codes.
-        url: /docs/commands.html
-      - title: Configuration
-        excerpt: The .zurdo/config.toml reference.
-        url: /docs/configuration.html
-      - title: Providers
-        excerpt: How zurdo drives the claude, codex, and copilot CLIs.
-        url: /docs/providers.html
-      - title: Roadmap
-        excerpt: What's coming in the next release and what's in development.
-        url: /docs/roadmap.html
-
 principles:
   - tag: Provider-agnostic
     title: No SDKs, no API keys
@@ -167,13 +116,4 @@ principles:
     body: Branching, committing, and pull requests stay yours. Zurdo edits the working tree through the agent and leaves version control to you.
 
 lineage: The design descends from the [Ralph technique](https://github.com/ClaytonFarr/ralph-playbook) — run an agent in a loop against a persistent plan — with each of Ralph's documented gaps closed by the runtime.
-
-support:
-  - label: Report a zurdo bug or request a feature
-    url: https://github.com/ElOrlis/zurdo-dist/issues
-  - label: Give documentation feedback
-    url: https://github.com/NumeronAI/zurdo.github.io/issues
-
-license: Zurdo is proprietary software, distributed as pre-built binaries. It is an independent reimplementation inspired by the Ralph technique.
-copyright: Copyright © 2026 Numeron Technologies Inc.
 ---
