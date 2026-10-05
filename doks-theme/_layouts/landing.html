@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		{% seo %}
+		{% if page.keywords %}<meta name="keywords" content="{{ page.keywords }}">{% endif %}
+		<meta name="color-scheme" content="light dark">
+		<link rel="icon" href="{{ '/favicon.svg' | relative_url }}" type="image/svg+xml">
+		<link rel="icon" href="{{ '/favicon-192.png' | relative_url }}" type="image/png" sizes="192x192">
+		<link rel="apple-touch-icon" href="{{ '/apple-touch-icon.png' | relative_url }}">
+		<script>
+			// Resolve the theme before first paint: saved choice, else the OS setting.
+			(function () {
+				var theme;
+				try { theme = localStorage.getItem('zurdo-theme'); } catch (e) {}
+				if (theme !== 'light' && theme !== 'dark') {
+					theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+				}
+				document.documentElement.classList.toggle('dark', theme === 'dark');
+				document.documentElement.setAttribute('data-theme', theme);
+			})();
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+		<link rel="stylesheet" href="{{ '/assets/vendor/heroui/heroui-3.2.6.min.css' | relative_url }}">
+		<link rel="stylesheet" href="{{ '/assets/css/landing.css' | relative_url }}">
+	</head>
+	<body class="lp">
+		<a class="lp-skip" href="#main">Skip to content</a>
+
+		<header class="lp-nav">
+			<div class="lp-container lp-nav__inner">
+				<a class="lp-brand" href="{{ '/' | relative_url }}" aria-label="zurdo home">
+					{% include zurdo-mark.svg %}
+					<span class="lp-brand__name">zurdo</span>
+					<span class="chip chip--sm chip--default chip--soft lp-brand__tag">docs</span>
+				</a>
+				<nav class="lp-nav__links" aria-label="Primary">
+					{% for item in site.doks.header.nav %}
+						<a class="lp-nav__link" href="{{ item.item_url | relative_url }}">{{ item.item_name }}</a>
+					{% endfor %}
+				</nav>
+				<div class="lp-nav__actions">
+					<a class="button button--ghost button--icon-only button--sm" href="https://github.com/ElOrlis/zurdo-dist" aria-label="zurdo on GitHub">
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a10.9 10.9 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+					</a>
+					<button class="button button--ghost button--icon-only button--sm" type="button" data-theme-toggle aria-label="Toggle dark mode">
+						<svg class="lp-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+						<svg class="lp-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+					</button>
+					<a class="button button--primary button--sm lp-nav__cta" href="{{ page.hero.primary.url | relative_url }}">{{ page.hero.primary.label }}</a>
+				</div>
+			</div>
+		</header>
+
+		<main id="main">
+			{% assign hero = page.hero %}
+			<section class="lp-hero">
+				<div class="lp-container lp-hero__grid">
+					<div class="lp-hero__copy">
+						<a class="lp-release" href="{{ hero.release.url | relative_url }}">
+							<span class="chip chip--sm chip--primary chip--accent">{{ page.version }}</span>
+							<span class="lp-release__text">{{ hero.release.text }}</span>
+							<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+						</a>
+						<h1 class="lp-hero__title">{{ hero.title }} <span class="lp-accent">{{ hero.title_accent }}</span></h1>
+						<p class="lp-hero__lead">{{ page.description }}</p>
+						<div class="lp-hero__actions">
+							<a class="button button--primary button--lg" href="{{ hero.primary.url | relative_url }}">
+								{{ hero.primary.label }}
+								<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+							</a>
+							<a class="button button--outline button--lg" href="{{ hero.secondary.url | relative_url }}">{{ hero.secondary.label }}</a>
+						</div>
+						<div class="lp-install">
+							<span class="lp-install__prompt" aria-hidden="true">$</span>
+							<code class="lp-install__cmd">{{ hero.install }}</code>
+							<button class="button button--ghost button--icon-only button--sm" type="button" data-copy="{{ hero.install | escape }}" aria-label="Copy install command">
+								{% include zurdo-copy-icons.html %}
+							</button>
+						</div>
+					</div>
+
+					<figure class="lp-terminal" aria-label="Excerpt of zurdo run output">
+						<div class="lp-terminal__bar">
+							<span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+							<span class="lp-terminal__title">zurdo run prds/auth.md</span>
+						</div>
+<pre class="lp-terminal__body"><code><span class="t-dim">─── task-auth: Set up authentication ─── effort=medium</span>
+  <span class="t-acc">→</span> iteration 1 of 5
+  <span class="t-ok">✓</span> agent completed: exit=0, 47s
+  <span class="t-acc">→</span> running 5 criteria
+    <span class="t-ok">✓</span> shell: cargo build <span class="t-dim">(1.2s)</span>
+    <span class="t-ok">✓</span> shell: cargo test <span class="t-dim">(8.4s)</span>
+    <span class="t-bad">✗</span> shell: cargo clippy -- -D warnings
+      <span class="t-dim">stderr tail: error: this loop never actually loops</span>
+  iteration 1: 4/5 criteria passed; <span class="t-warn">will retry</span>
+  <span class="t-dim">...</span>
+  <span class="t-ok">✓ task-auth: passed in 2 iterations</span> <span class="t-dim">(8m 14s)</span></code></pre>
+						<figcaption class="lp-terminal__caption">
+							<span class="lp-dot" aria-hidden="true"></span>
+							{{ hero.terminal_caption }}
+						</figcaption>
+					</figure>
+				</div>
+
+				<div class="lp-container lp-providers">
+					<span class="lp-providers__label">Drives the agent CLIs you already use</span>
+					<ul class="lp-providers__list">
+						{% for provider in page.providers %}
+							<li><a class="chip chip--lg chip--default chip--soft" href="{{ provider.url }}"><code>{{ provider.name }}</code></a></li>
+						{% endfor %}
+					</ul>
+				</div>
+			</section>
+
+			<section class="lp-section" aria-labelledby="why-title">
+				<div class="lp-container">
+					<div class="lp-section__head">
+						<p class="lp-eyebrow">{{ page.why.eyebrow }}</p>
+						<h2 id="why-title" class="lp-section__title">{{ page.why.title }}</h2>
+						<p class="lp-section__lead">{{ page.why.lead }}</p>
+					</div>
+					<div class="lp-features">
+						{% for feature in page.why.features %}
+							<a class="card card--default lp-feature" href="{{ feature.url | relative_url }}">
+								<span class="lp-feature__icon" aria-hidden="true">{% include zurdo-icon.html name=feature.icon %}</span>
+								<div class="card__header">
+									<h3 class="card__title lp-feature__title">{{ feature.title }}</h3>
+									<p class="card__description">{{ feature.body | escape }}</p>
+								</div>
+								<span class="lp-more">Learn more <span aria-hidden="true">→</span></span>
+							</a>
+						{% endfor %}
+					</div>
+				</div>
+			</section>
+
+			<section class="lp-section lp-section--tinted" aria-labelledby="throughput-title">
+				<div class="lp-container lp-throughput">
+					<div>
+						<p class="lp-eyebrow">{{ page.throughput.eyebrow }}</p>
+						<h2 id="throughput-title" class="lp-section__title">{{ page.throughput.title }}</h2>
+						<p class="lp-section__lead">{{ page.throughput.body }}</p>
+						<a class="button button--secondary" href="{{ page.throughput.url | relative_url }}">{{ page.throughput.cta }}</a>
+					</div>
+					<div class="card card--default lp-equation">
+						<p class="lp-equation__label">Engineering throughput</p>
+						<p class="lp-equation__formula">
+							<span>throughput</span> <span class="lp-equation__op">≈</span>
+							<span class="lp-equation__frac">
+								<span>available attention</span>
+								<span>authoring timebox + review timebox</span>
+							</span>
+						</p>
+						<div class="separator separator--horizontal"></div>
+						<p class="card__description">{{ page.throughput.footnote }}</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="lp-section" aria-labelledby="quickstart-title">
+				<div class="lp-container lp-quickstart">
+					<div class="lp-section__head">
+						<p class="lp-eyebrow">Quick start</p>
+						<h2 id="quickstart-title" class="lp-section__title">From install to verified run in minutes</h2>
+						<p class="lp-section__lead">Run these from the root of the repo you want zurdo to drive. A bare <code>zurdo &lt;prd&gt;</code> is sugar for <code>zurdo run &lt;prd&gt;</code>.</p>
+					</div>
+					<div class="tabs lp-tabs" data-orientation="horizontal" data-tabs>
+						<div class="tabs__list-container">
+							<div class="tabs__list" role="tablist" data-orientation="horizontal" aria-label="Quick start steps">
+								{% for step in page.quickstart %}
+									<button class="tabs__tab" type="button" role="tab" id="qs-tab-{{ forloop.index }}" aria-controls="qs-panel-{{ forloop.index }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" {% if forloop.first %}data-selected="true"{% else %}tabindex="-1"{% endif %}>
+										<span class="lp-tabs__num">{{ forloop.index }}</span>{{ step.label }}
+										{% if forloop.first %}<span class="tabs__indicator" data-indicator></span>{% endif %}
+									</button>
+								{% endfor %}
+							</div>
+						</div>
+						{% for step in page.quickstart %}
+							<div class="tabs__panel" role="tabpanel" id="qs-panel-{{ forloop.index }}" aria-labelledby="qs-tab-{{ forloop.index }}" data-orientation="horizontal" tabindex="0" {% unless forloop.first %}hidden{% endunless %}>
+								<p class="lp-tabs__caption">{{ step.caption }}</p>
+								<div class="lp-code">
+									<button class="button button--ghost button--icon-only button--sm lp-code__copy" type="button" data-copy-target="qs-code-{{ forloop.index }}" aria-label="Copy commands">
+										{% include zurdo-copy-icons.html %}
+									</button>
+									<pre><code id="qs-code-{{ forloop.index }}" data-shell>{{ step.code | escape }}</code></pre>
+								</div>
+							</div>
+						{% endfor %}
+					</div>
+				</div>
+			</section>
+
+			<section class="lp-section lp-section--tinted" aria-labelledby="docs-title">
+				<div class="lp-container">
+					<div class="lp-section__head">
+						<p class="lp-eyebrow">Documentation</p>
+						<h2 id="docs-title" class="lp-section__title">Find your way around</h2>
+					</div>
+					<div class="lp-docs">
+						{% for group in page.doc_groups %}
+							<div class="lp-docs__group">
+								<h3 class="lp-docs__heading">{{ group.title }}</h3>
+								<ul class="lp-docs__list">
+									{% for item in group.items %}
+										<li>
+											<a class="lp-doc" href="{{ item.url | relative_url }}">
+												<span class="lp-doc__title">{{ item.title }}</span>
+												<span class="lp-doc__excerpt">{{ item.excerpt | escape }}</span>
+												<svg class="lp-doc__arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+											</a>
+										</li>
+									{% endfor %}
+								</ul>
+							</div>
+						{% endfor %}
+					</div>
+				</div>
+			</section>
+
+			<section class="lp-section" aria-labelledby="principles-title">
+				<div class="lp-container">
+					<div class="lp-section__head">
+						<p class="lp-eyebrow">By design</p>
+						<h2 id="principles-title" class="lp-section__title">Two deliberate non-features</h2>
+					</div>
+					<div class="lp-principles">
+						{% for principle in page.principles %}
+							<div class="card card--secondary lp-principle">
+								<span class="chip chip--sm chip--accent chip--soft">{{ principle.tag }}</span>
+								<h3 class="card__title lp-feature__title">{{ principle.title }}</h3>
+								<p class="card__description">{{ principle.body | escape }}</p>
+							</div>
+						{% endfor %}
+					</div>
+					<div class="lp-lineage">{{ page.lineage | markdownify }}</div>
+				</div>
+			</section>
+		</main>
+
+		<footer class="lp-footer">
+			<div class="lp-container lp-footer__grid">
+				<div>
+					<a class="lp-brand" href="{{ '/' | relative_url }}" aria-label="zurdo home">
+						{% include zurdo-mark.svg %}
+						<span class="lp-brand__name">zurdo</span>
+					</a>
+					<p class="lp-footer__note">{{ page.license }}</p>
+				</div>
+				<div>
+					<h2 class="lp-footer__heading">Support</h2>
+					<ul class="lp-footer__list">
+						{% for link in page.support %}
+							<li><a class="link" href="{{ link.url }}">{{ link.label }}</a></li>
+						{% endfor %}
+					</ul>
+				</div>
+				<div>
+					<h2 class="lp-footer__heading">Start here</h2>
+					<ul class="lp-footer__list">
+						{% for item in site.doks.header.nav %}
+							<li><a class="link" href="{{ item.item_url | relative_url }}">{{ item.item_name }}</a></li>
+						{% endfor %}
+					</ul>
+				</div>
+			</div>
+			<div class="lp-container lp-footer__base">
+				<span>{{ page.copyright }}</span>
+				<span>Docs for zurdo {{ page.version }}</span>
+			</div>
+		</footer>
+
+		<script src="{{ '/assets/js/landing.js' | relative_url }}" defer></script>
+		{% include google-analytics.html %}
+	</body>
+</html>
