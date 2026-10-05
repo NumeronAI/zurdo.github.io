@@ -19,126 +19,95 @@ page_nav:
 mermaid: true
 ---
 
-[Writing PRDs](writing-prds.md) teaches the artifact — this guide teaches the loop you run it in. It describes the workflow zurdo was built around: scope deliberately, author fast, verify the spec before spending tokens, run on machine time, review on your schedule, and let results feed the next scope.
+[Writing PRDs](writing-prds.md) teaches the artifact. This page teaches the loop you run it in. You scope deliberately, write the PRD fast, check the spec before spending tokens, run on machine time, and review when you're free.
 
-The audience is the same as zurdo's: engineers who design systems. The loop assumes you can decompose work into tasks and state what "done" means as observable evidence. If you can do that, the loop turns development itself into autocomplete on steroids — the engineering is kept; only the typing is delegated.
+It assumes you can split work into tasks and state "done" as observable evidence. You keep the engineering and delegate only the typing.
 
 ## The loop
 
 ```mermaid
-flowchart TD
-    subgraph SCOPE["1 · Research + scope — unbounded: hours, days, sometimes weeks"]
-        R["Research the system:<br/>code, constraints, failure modes"] --> S["Lock the scope:<br/>what will exist when this is done"]
-    end
-
-    subgraph AUTHOR["2 · PRD creation — 30 min to 1 hr"]
-        P["Author PRDs<br/>(zurdo-prd-author skill, PRD grammar)"]
-    end
-
-    subgraph GATE["3 · Verify the PRDs themselves"]
-        HV["Human review:<br/>criteria honest, falsifiable, complete?"]
-        ZV["zurdo validate<br/>zurdo analyze"]
-    end
-
-    subgraph RUN["4 · Run — machine time, off your clock"]
-        X["zurdo run prd.md<br/>(often on a remote server)"]
-        V["Independent verification of every<br/>criterion after every iteration"]
-    end
-
-    subgraph REVIEW["5 · Review — 30 min to 1 hr, when free"]
-        REP["Walk the report:<br/>evidence, provenance, manual obligations"]
-        D{"Verdict"}
-    end
-
-    S --> P
-    P --> HV
-    HV --> ZV
-    ZV -- "findings" --> P
-    ZV -- "clean" --> X
-    X --> V
-    V --> REP
-    REP --> D
-    D -- "evidence holds:<br/>merge, then next PRDs" --> S
-    D -- "design was wrong:<br/>update the scope" --> S
+flowchart LR
+    S["1 · Scope<br/>unbounded"] --> A["2 · Author PRD<br/>30–60 min"]
+    A --> G{"3 · Verify the PRD<br/>human + validate/analyze"}
+    G -->|findings| A
+    G -->|clean| R["4 · Run<br/>machine time"]
+    R --> V["5 · Review<br/>30–60 min"]
+    V --> D{"6 · Decide"}
+    D -->|"merge, next PRD"| S
+    D -->|"design was wrong"| S
 ```
 
-Two properties make the loop work:
+Two properties make it work:
 
-- **Human attention appears only where judgment is irreplaceable** — locking the scope, and accepting or rejecting outcomes. Everything between those two points runs on machine time.
-- **Verification is symmetric.** The spec is verified before execution (phase 3), the work is verified after (phase 4). The cheap gate runs before the expensive phase; expensive human judgment runs only after both machine gates pass.
+- **You're needed only where judgment is irreplaceable:** when you lock the scope, and when you accept or reject the result. Everything in between runs on machine time.
+- **Verification happens on both sides.** The spec is checked before the run and the work after it, so the cheap gate always runs before the expensive one.
 
 ## Phase by phase
 
-### 1 · Research + scope — the unbounded phase
+<div class="lp-cards" markdown="1">
+<div markdown="1">
+**1 · Scope (unbounded)**
+Research the code, constraints, and failure modes, then lock what will exist when you're done. Take as long as it takes, because the scope is a commitment.
+</div>
+<div markdown="1">
+**2 · Author (30–60 min)**
+Use the `zurdo-prd-author` skill to turn the scope into tasks and criteria, writing the evidence first. If this drags, the scope wasn't really locked.
+</div>
+<div markdown="1">
+**3 · Verify the PRD**
+First a human check: is each criterion honest, falsifiable, and failing today? Then `zurdo validate` and `zurdo analyze`. Catching a bad criterion here costs a minute. Catching it after a run costs the run.
+</div>
+<div markdown="1">
+**4 · Run (machine time)**
+`zurdo run`, often on a remote server, and then walk away. Zurdo checks every hint after every iteration, and `Max-Attempts` caps the spend.
+</div>
+<div markdown="1">
+**5 · Review (30–60 min)**
+Read `zurdo report` and sign off `[manual]` criteria in [`zurdo review`](usage.md#reviewing-a-run-with-zurdo-review), which keeps a tamper-evident log of sign-offs. The criteria already answered "does it work?" Review asks "is this how I'd have built it?" Green means the evidence exists. It doesn't mean merge.
+</div>
+<div markdown="1">
+**6 · Decide**
+If the evidence holds, merge it yourself (zurdo has no git automation) and move on to the next PRD. If a task keeps failing, the scope's model of the system was probably wrong, so take that into the next scoping session.
+</div>
+</div>
 
-Every other phase is timeboxed. This one is deliberately not: scoping can take an hour, days, or weeks, and that is correct — **because the scope is a commitment device**. Once a PRD runs, the scope dictates the work and forces you to build and *finish*, not build and deviate.
+<details markdown="1">
+<summary>Why scoping is the one phase without a timebox</summary>
 
-This is the agile discipline, enforced mechanically instead of socially (the full ceremony-by-ceremony mapping is in [The agile correlation](#the-agile-correlation) below). A sprint commitment only works if the team doesn't renegotiate it mid-sprint; zurdo's runtime gives that rule teeth:
+The scope is a commitment device. Once a PRD runs, the scope dictates the work and forces you to *finish*, not deviate. Zurdo enforces this mechanically, not socially:
 
-- **The PRD is immutable during a run** — the runtime never modifies it, and mid-run "actually, let's also…" has no entry point.
-- **Criteria are independently re-run** — the definition of done cannot drift to match whatever got built.
-- **Frozen paths** fence evidence the run must not touch.
+- **The PRD is immutable during a run.** A mid-run "actually, let's also…" has no way in.
+- **Zurdo re-runs every criterion itself**, so the definition of done can't drift to match whatever got built.
+- **Frozen paths** fence off evidence the run must not touch.
 
-Deviation isn't suppressed — it's *scheduled*. Anything discovered mid-run becomes input to the next scoping session, not a mid-flight swerve. The cost of that discipline is paid here, up front: a scope worth committing to takes as long as it takes.
+Deviation isn't suppressed, it's *scheduled*: anything you discover mid-run goes into the next scoping session. A good scope is concrete enough that phase 2 is transcription, not invention.
 
-Deliverable: a locked statement of what will exist when the work is done — concrete enough that phase 2 is transcription, not invention.
-
-### 2 · PRD creation — 30 min to 1 hr
-
-With the scope locked, authoring is fast. Use the `zurdo-prd-author` skill: it interrogates intent into tasks, dependency edges, and the [PRD grammar](writing-prds.md), and pressure-tests every criterion's hint before any tokens burn. Criteria are born as evidence — "when this is done, what observable facts will be true?" — not retrofitted onto tasks.
-
-If authoring drags past an hour, that's usually the previous phase leaking: the scope wasn't actually locked.
-
-### 3 · Verify the PRDs — human and machine
-
-Two gates, in order:
-
-1. **Human pass.** Are the criteria honest? Would each one fail on today's tree? Is anything a tautology the agent can satisfy without doing the work? Is every `[manual]` genuinely un-automatable?
-2. **Machine pass.** `zurdo validate` for grammar, dependency graph, and the deterministic lints; `zurdo analyze` for the deeper pre-flight when the PRD warrants it.
-
-Findings loop back to phase 2. Nothing runs until both gates are clean. This is the cheapest verification in the whole system — a bad criterion caught here costs a minute; caught after a run, it costs the run.
-
-### 4 · Run — machine time
-
-`zurdo run prd.md`, typically on a remote server, then go about your day. The runtime drives the agent task by task, and after every iteration it — never the agent — executes every hint and decides pass/fail. Attempt budgets (`Max-Attempts`) bound the spend; crash-safe state under `.zurdo/<slug>/` means an interrupted run resumes instead of restarting.
-
-This phase consumes zero engineer attention by design. Its duration does not appear in your cycle time.
-
-### 5 · Review — 30 min to 1 hr, when free
-
-Read the report (`zurdo report`), walk the evidence, and settle every `[manual]` obligation — the [`zurdo review` TUI](usage.md#reviewing-a-run-with-zurdo-review) puts each criterion's provenance and the baseline diff next to the sign-off action, and records every sign-off in a tamper-evident log. Review is not "did it work at all?" — the criteria already answered that. Review is *"is this how I'd have built it?"* Green means the evidence you demanded exists and wasn't tampered with; it does not mean merge. The human reviews the diff — verification just did the triage.
-
-### 6 · Decide — merge or re-scope
-
-Two exits, both feeding phase 1:
-
-- **Evidence holds.** Merge the implementation (branching, committing, and PRs are yours — zurdo has no git automation), then continue with the next PRDs.
-- **The design was wrong.** A task that exhausts `Max-Attempts` is often not an agent failure — it's the PRD telling you the scope's model of the system was wrong. Treat persistently failing criteria as design feedback and take them into the next scoping session.
+</details>
 
 ## The agile correlation
 
-If the loop feels familiar, it should: it is the agile cycle with the sprint compressed from two weeks to a few hours, the team replaced by an agent, and — the part that matters — **every rule that agile enforces socially enforced mechanically instead**.
+This is the agile cycle with three changes. The sprint shrinks to hours, an agent replaces the team, and **every rule agile enforces socially, zurdo enforces mechanically**.
 
-| Agile ceremony / artifact | Zurdo equivalent | What changes |
+| Agile | Zurdo | What changes |
 |---|---|---|
-| Product backlog | The scope queue — findings and deferred work feeding the next scoping session | Same role, same grooming discipline |
-| Sprint planning | Research + scope (phase 1) | Still the unbounded, judgment-heavy phase — zurdo doesn't compress *this*, and shouldn't |
-| User story + acceptance criteria | PRD task + hint-typed criteria (`[shell:]`, `[grep:]`, …) | Criteria stop being prose — they're executable predicates ([Hints reference](hints.md)) |
-| Definition of Done | The hints themselves | DoD stops being aspirational: the runtime executes it after every iteration; nobody can "call it done" |
-| Sprint commitment | The locked PRD | Immutable during the run by design — mid-sprint renegotiation has no entry point |
-| The sprint | The run (phase 4) | Two weeks becomes hours; burndown becomes `Max-Attempts` budgets and cost accounting |
-| Daily standup | `progress.log` + iteration records | Same information, zero meetings — read it when you review, or never |
-| Sprint review / demo | Review (phase 5): report, evidence, `[manual]` sign-off in `zurdo review` | "It works, trust me" is replaced by evidence the runtime gathered independently |
-| Retrospective | The decide step (phase 6) | Persistently failing criteria are the retro input: they tell you the scope's model of the system was wrong |
-| Velocity | `throughput ≈ attention ÷ (author + review)` | Measured in merged scopes per unit of attention, not story points |
+| Product backlog | Findings and deferred work queued for the next scope | Nothing: same role |
+| Sprint planning | Scope (phase 1) | Still the slow, judgment-heavy phase, and it should be |
+| Story + acceptance criteria | PRD task + [hint-typed criteria](hints.md) | Criteria become executable checks |
+| Definition of Done | The hints | Executed after every iteration, so nobody can just "call it done" |
+| Sprint commitment | The locked PRD | Can't be renegotiated mid-run |
+| The sprint | The run | Weeks become hours, and `Max-Attempts` replaces the burndown |
+| Daily standup | `progress.log` + iteration records | Same information, no meeting |
+| Sprint review / demo | Review: report, evidence, `[manual]` sign-off | Evidence the runtime gathered replaces "trust me" |
+| Retrospective | Decide (phase 6) | Failing criteria are the retro input |
+| Velocity | `attention ÷ (author + review)` | Counted in merged scopes, not story points |
 
-The correlation runs deeper than vocabulary. Agile's core insight was *commit, execute without renegotiation, inspect at a fixed cadence, adapt in the next cycle* — and its chronic failure mode is that every one of those rules is enforced by social pressure, so they erode: the Definition of Done drifts into aspiration, scope creeps mid-sprint, the demo becomes theater. Zurdo keeps the insight and swaps the enforcement: the PRD cannot drift, the criteria cannot be talked into passing, and the demo is a report the executor had no hand in grading. It's the agile program with a runtime instead of a scrum master.
+Agile's rules erode because people enforce them: the definition of done drifts and the demo becomes theater. Here the PRD can't drift, the criteria can't be talked into passing, and the agent doesn't grade its own demo.
 
-One honest asymmetry: agile ceremonies also carry team communication, and zurdo replaces none of that. This loop covers the single-engineer (or engineer-plus-agent) cycle; aligning humans with each other is still your job.
+One honest limit: agile ceremonies also keep a team talking to each other, and zurdo replaces none of that. This loop covers one engineer working with one agent.
 
-## Pipelining: nothing forces the loop to be serial
+## Pipelining
 
-Cycle N+1's authoring never waits on cycle N's review. While one PRD runs, scope or author the next; review when free.
+The loop doesn't have to be serial. While one PRD runs, scope or author the next one, and review when you're free.
 
 ```mermaid
 gantt
@@ -155,21 +124,17 @@ gantt
     Run PRD B                     :r2, 11:00, 4h
 ```
 
-This is where the productivity actually comes from — not agent speed. Daily throughput is roughly:
-
 ```text
 throughput ≈ available attention ÷ (authoring timebox + review timebox)
 ```
 
-Implementation duration drops out of the equation entirely. An interactive chat workflow cannot decouple these: there, engineer attention is consumed per iteration, so throughput stays chained to implementation time. Here it is consumed per design and per verdict.
-
-The other gain is cognitive batching. Design happens in one uninterrupted block, review in another — no context-switching between architect-brain and reviewer-brain every few minutes all day.
+Implementation time drops out of the equation. That's where the gain comes from, not from agent speed. In a chat workflow, every iteration costs your attention. Here you spend it once on the design and once on the verdict. You also get to batch similar work: design in one block, review in another.
 
 ## Practical notes
 
-- **Unattended runs are the point.** Verification is what makes it safe to take your attention off the loop; attempt budgets are what bound the cost. Without both, "go about your day" is just deferred debugging.
-- **Remote servers fit naturally.** State is atomic and resumable; the run doesn't care that you've disconnected.
-- **Make the machine PRD-gate a habit**, not a choice — run `validate` before every run, on every PRD, including ones you're sure about. The mornings you skip it are the mornings you were rushing, which are exactly the mornings it pays.
-- **Respect the timeboxes asymmetrically.** Authoring and review are meant to be short *because scoping was thorough*. If either regularly overruns, fix the scope phase — don't grow the timeboxes.
+- **Unattended runs are the point.** Verification makes it safe to look away, and attempt budgets cap the cost.
+- **Remote servers fit naturally.** State is atomic and resumable, so you can disconnect.
+- **Run `validate` before every run**, even on PRDs you're sure about. You're most tempted to skip it when you're rushing, which is exactly when it catches something.
+- **If authoring or review regularly runs over, fix the scope phase.** Don't stretch the timeboxes.
 
 Next: [Effective use](effective-use.md)

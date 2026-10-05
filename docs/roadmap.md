@@ -13,16 +13,16 @@ page_nav:
         url: '/docs/providers.html'
 ---
 
-What's moving in zurdo, relative to the released **v1.25.0** these docs describe. Items here are subject to change until they ship.
+What's changing in zurdo relative to **v1.25.0**, the release these docs describe. Unreleased items can change until they ship.
 
 ## Just shipped: v1.22.0 – v1.25.0 (September 2026)
 
-Four releases that make zurdo's code index **something agents can ask**, not only something the verifier reads:
+Four releases that turn zurdo's code index into **something agents can ask**, not only something the verifier reads:
 
 - **v1.22.0 (2026-09-20) — query the index.** [`zurdo lumen query`](lumen.md#asking-the-index-a-question) answers name lookups, file outlines, and caller/reference questions from the command line, and [`zurdo mcp serve`](mcp.md) serves the same four questions to MCP clients. Resumed runs now record the evaluation that short-circuited a task (`preflight_pass` in `prd.json`, read by `zurdo report`), and `run-diff.patch` opens with a header naming the baseline it covers.
 - **v1.23.0 (2026-09-21) — deeper Rust, quieter answers.** The index records enum variants, fields, and macros as their own kinds. `--name` stops padding an exact answer with substring matches.
 - **v1.24.0 (2026-09-26) — agents get the server.** Two more MCP tools, `match_lessons` and `run_report`, serve the compound loop's own state. With [`[mcp] inject_server`](mcp.md#letting-zurdo-run-hand-the-server-to-the-agent), `zurdo run` registers the server with the `claude`, `codex`, or `copilot` executor it launches. Off by default.
-- **v1.25.0 (2026-09-29) — Python, TypeScript/JavaScript, and Go depth.** Fields, enum members, protocols, namespaces, and import aliases are indexed in every language, and call chains render on one line. **Some names changed kind**, so a few structural hints may need re-pinning. See [the upgrade note](lumen.md#what-resolves-per-language).
+- **v1.25.0 (2026-09-29) — Python, TypeScript/JavaScript, and Go depth.** Fields, enum members, protocols, namespaces, and import aliases are indexed in every language, and call chains render on one line. **Some names changed kind**, so a few structural hints may need updating. See [the upgrade note](lumen.md#what-resolves-per-language).
 
 ## Recently shipped
 
@@ -40,21 +40,21 @@ Four releases that make zurdo's code index **something agents can ask**, not onl
 
 Merged since v1.25.0 and planned for the next release:
 
-- **Pyxis — search by meaning, not just by name.** Lumen answers questions about *named* code; it can't find the doc section that explains a feature, or the function whose name you don't know. Pyxis is a second, opt-in index over source symbols **and markdown prose**. It is turned on with a new `[pyxis] enabled` key, and it also needs Lumen on. A new `zurdo pyxis status | query | install` command family comes with it:
-  - **Lexical always.** Ranking is BM25 over each symbol's name, doc comment, and first lines, and over each markdown section. No model and no network are needed.
-  - **Hybrid when installed.** `zurdo pyxis install` downloads a small pinned static embedding model from the release and verifies every file's SHA-256 before using it. Ranking then fuses BM25 with embedding similarity. A model whose checksum doesn't match is reported and refused, never silently downgraded to lexical.
-  - **Always current.** The index repairs itself by content hash on every query, so an edit shows up in the next answer.
+- **Pyxis — search by meaning, not just by name.** Lumen answers questions about *named* code. It can't find the doc section that explains a feature, or a function whose name you don't know. Pyxis is a second, opt-in index over source symbols **and markdown prose**, enabled with a new `[pyxis] enabled` key (Lumen must be on too). It adds a `zurdo pyxis status | query | install` command family:
+  - **Lexical always.** BM25 ranking over each symbol's name, doc comment, and first lines, and over each markdown section. No model or network needed.
+  - **Hybrid when installed.** `zurdo pyxis install` downloads a small pinned static embedding model from the release and verifies every file's SHA-256. Ranking then fuses BM25 with embedding similarity. A model with a bad checksum is reported and refused, never silently downgraded to lexical.
+  - **Always current.** The index repairs itself by content hash on every query, so edits show up in the next answer.
   - **Leads, not locations.** Each `zurdo pyxis query` row is labeled `lexical` or `hybrid`, and **no row carries a line or column**. Pyxis tells an agent where to look, and Lumen proves what is there.
   - **Over MCP too.** `zurdo mcp serve` gains a seventh tool, `find_related`, when Pyxis is enabled.
   
-  A follow-up still has to land first: `zurdo pyxis install` should repair a damaged model directory, since `status` names it as the fix.
+  One follow-up must land first: `zurdo pyxis install` should repair a damaged model directory, since `status` suggests it as the fix.
 
 ## In development
 
-The current milestone makes the index an agent-facing surface. Querying, the MCP server, run injection, the compound-loop tools, and per-language depth have shipped, and Pyxis is above. What remains:
+The current milestone makes the index something agents use directly. Querying, the MCP server, run injection, the compound-loop tools, and per-language depth have shipped, and Pyxis is above. Still to come:
 
-- **Measuring whether it pays.** Run injection is off by default until runs with the server are compared against a recorded baseline of how much agents navigate without it. That measurement also decides whether `[mcp] inject_server` should default on.
-- **Links to a sibling repository's index**, so an agent working in one repository can ask about another. This is still being researched.
+- **Measuring whether it pays.** Run injection stays off by default until runs with the server are compared against a recorded baseline of agent navigation without it. That comparison also decides whether `[mcp] inject_server` should default on.
+- **Links to a sibling repository's index**, so an agent in one repository can ask about another. Still in research.
 
 None of these are committed. [Open an issue](https://github.com/ElOrlis/zurdo-dist/issues) to influence what comes next.
 

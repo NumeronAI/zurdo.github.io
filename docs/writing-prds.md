@@ -14,15 +14,54 @@ page_nav:
     next:
         content: Hints reference
         url: '/docs/hints.html'
+
+# Mermaid diagrams on this page
+mermaid: true
 ---
 
-Zurdo PRDs are markdown with a strict, machine-checked grammar. Strictness is the point: a PRD that parses is a PRD whose acceptance criteria zurdo can execute.
+A zurdo PRD is markdown with a strict grammar. If a PRD parses, zurdo can execute its acceptance criteria.
 
 <div class="callout callout--danger" markdown="1">
-**Important** If you only read one thing: use a real **em-dash (U+2014)** in your task headings, leave **no blank line** between the H2 and the metadata block, and give **every acceptance criterion at least one hint**.
+**Important** If you remember three things: use a real **em-dash (`—`, U+2014)** in task headings, leave **no blank line** under the heading, and give **every criterion at least one hint**.
 </div>
 
 ## The 60-second tour
+
+<figure class="lp-figure" aria-label="Anatomy of a PRD: title, task heading, metadata block, optional requirements, description sent to the agent, and acceptance criteria run by zurdo">
+<div class="lp-figure__scroll"><svg viewBox="0 0 680 320" role="img">
+  <rect x="10" y="10" width="340" height="30" rx="5" class="lp-svg-box" stroke-width="1"/>
+  <text class="lp-svg-mono" x="22" y="30"># PRD: Add authentication</text>
+  <rect x="10" y="52" width="340" height="30" rx="5" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="22" y="72">## Task: task-auth — Add tokens</text>
+  <rect x="10" y="84" width="340" height="46" rx="5" class="lp-svg-box" stroke-width="1"/>
+  <text class="lp-svg-mono" x="22" y="103">**Effort**: medium</text>
+  <text class="lp-svg-mono" x="22" y="121">**Depends-on**: []</text>
+  <rect x="10" y="142" width="340" height="30" rx="5" class="lp-svg-box" stroke-width="1" stroke-dasharray="4 3"/>
+  <text class="lp-svg-mono" x="22" y="162">### Requirements</text>
+  <rect x="10" y="184" width="340" height="30" rx="5" class="lp-svg-box" stroke-width="1"/>
+  <text class="lp-svg-mono" x="22" y="204">### Description</text>
+  <rect x="10" y="226" width="340" height="84" rx="5" class="lp-svg-box" stroke-width="1"/>
+  <text class="lp-svg-mono" x="22" y="246">### Acceptance Criteria</text>
+  <text class="lp-svg-mono" x="22" y="268">- [ ] tests pass</text>
+  <text class="lp-svg-mono" x="22" y="288">      [shell: cargo test]</text>
+  <path class="lp-svg-line" d="M356 67 H384" stroke-width="1.5"/>
+  <text class="lp-svg-text" x="392" y="63" font-weight="600">Em-dash between id and title</text>
+  <text class="lp-svg-muted" x="392" y="80">id matches ^task-[a-z0-9-]+$</text>
+  <path class="lp-svg-line" d="M356 107 H384" stroke-width="1.5"/>
+  <text class="lp-svg-text" x="392" y="103" font-weight="600">Metadata, directly under the heading</text>
+  <text class="lp-svg-muted" x="392" y="120">no blank lines · seven keys only</text>
+  <path class="lp-svg-line" d="M356 157 H384" stroke-width="1.5"/>
+  <text class="lp-svg-text" x="392" y="161" font-weight="600">Optional: requirement ids</text>
+  <path class="lp-svg-line" d="M356 199 H384" stroke-width="1.5"/>
+  <text class="lp-svg-text" x="392" y="203" font-weight="600">Sent verbatim to the agent</text>
+  <path class="lp-svg-line" d="M356 268 H384" stroke-width="1.5"/>
+  <text class="lp-svg-text" x="392" y="264" font-weight="600">Run by zurdo, never the agent</text>
+  <text class="lp-svg-muted" x="392" y="281">each criterion needs ≥ 1 hint</text>
+</svg></div>
+<figcaption>Sections must appear in this order. Requirements is the only optional one.</figcaption>
+</figure>
+
+The full grammar in one example:
 
 ```markdown
 # PRD: <free-form title>
@@ -50,126 +89,100 @@ Free-form prose. Passed verbatim to the executor agent.
 - [ ] design review signed off [manual]
 ```
 
-A PRD is one H1 title plus one or more `## Task:` blocks. Each task has a contiguous metadata block, an optional `### Requirements` section, a `### Description` (sent verbatim to the agent), and `### Acceptance Criteria` (executed by zurdo). Section order is enforced: Requirements (optional) → Description → Acceptance Criteria.
+## The five rules
 
-## Rule 1: task headings use an em-dash, not a hyphen
+Each broken rule is a validation error with its own message:
 
-The H2 task heading is exactly `## Task: <id> — <title>`. The separator between the task id and the title is a **U+2014 EM DASH** (`—`) — not a hyphen (`-`) and not an en-dash (`–`). The parser rejects each wrong separator with its own dedicated error:
+<figure class="lp-terminal" aria-label="zurdo validate rejecting four malformed PRDs">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo validate</span></div>
+<pre class="lp-terminal__body"><code><span class="t-dim">$</span> zurdo validate bad/hyphen.md
+<span class="t-bad">bad/hyphen.md:3: task heading uses hyphen-minus (U+002D) where an em-dash (U+2014) is required</span>
+<span class="t-dim">$</span> zurdo validate bad/blank-line.md
+<span class="t-bad">bad/blank-line.md:3: blank line between task heading and metadata block</span>
+<span class="t-dim">$</span> zurdo validate bad/unknown-key.md
+<span class="t-bad">bad/unknown-key.md:6: unknown metadata key `Priority`</span>
+<span class="t-dim">$</span> zurdo validate bad/no-hint.md
+<span class="t-bad">bad/no-hint.md:11: criterion has no hints in task `task-1`</span></code></pre>
+<figcaption class="lp-terminal__caption"><span class="lp-dot" aria-hidden="true"></span>Each one exits 2, so you find out before a run starts.</figcaption>
+</figure>
 
-```
-line 12: task heading uses hyphen-minus (U+002D) where an em-dash (U+2014) is required
-```
+| # | Rule | Good | Bad |
+| --- | --- | --- | --- |
+| 1 | The heading is `## Task: <id> — <title>`, with an **em-dash** | `## Task: task-1 — Greet` | `task-1 - Greet`, `task-1 – Greet` |
+| 2 | Metadata sits **directly** under the heading, with no blank line before or inside it | heading, then `**Effort**: low` on the next line | a blank line between them |
+| 3 | Only the [seven metadata keys](#metadata-keys) are allowed, each written as `**Key**: value` | `**Effort**: low` | `**Priority**: high` |
+| 4 | Every criterion needs **at least one hint**. Write `[manual]` if a human checks it. | `- [ ] tests pass [shell: cargo test]` | `- [ ] the greeter works` |
+| 5 | `Effort` must be a key in your config's `[effort_map.<provider>]` | `low`, `medium`, `high` (default config) | a level your map doesn't define |
 
-**Editor pitfall.** Many editors auto-replace `--` or ` - ` with an en-dash or em-dash inconsistently, and some Markdown linters reverse the change. If yours does, disable typographic autoreplace for `.md` files or bind a snippet that inserts the literal `—`. macOS: `Option+Shift+-`. Linux with a Compose key: `Compose - - -`.
+- **Task ids** match `^task-[a-z0-9-]+$`. `task-1`, `task-auth-rotate`, and `task-3a` are valid. `Task-1`, `auth_rotate`, and `task--` are not.
+- **Em-dash input.** On macOS, type `Option+Shift+-`. On Linux, type `Compose - - -`. If your editor or linter swaps dashes automatically, turn that off for `.md` files.
+- **Hints combine with AND.** `[shell: cargo build] [file-exists: target/debug/zurdo]` passes only if both pass. Every hint type is on the [Hints reference](hints.md). With `[lumen] enabled = true`, the [structural hints](lumen.md) are available too. Run `zurdo lumen query --name <name>` first to get the exact kind and name.
+- **Effort isn't a fixed list.** It's checked at pre-flight against the active executor's map. If your `[effort_map.anthropic]` defines only `low` and `high`, then `medium` is rejected for Anthropic runs. See [Configuration](configuration.md).
 
-The id itself must match `^task-[a-z0-9-]+$` — lowercase, digits, and hyphens, prefix required. `task-1`, `task-auth-rotate`, and `task-3a` parse; `Task-1`, `auth_rotate`, and `task--` fail validation.
-
-## Rule 2: no blank line before (or inside) the metadata block
-
-The metadata block lives **immediately** under the task heading. A blank line in between is rejected — the parser treats the H2 as having no metadata at all.
-
-**Bad:**
-
-```markdown
-## Task: task-1 — Write the greeter
-
-**Effort**: low
-**Depends-on**: []
-```
-
-**Good:**
-
-```markdown
-## Task: task-1 — Write the greeter
-**Effort**: low
-**Depends-on**: []
-```
-
-The block must also be **contiguous**: a blank line between metadata fields ends the block, and any further `**Key**: value` line after that is rejected.
-
-## Rule 3: the metadata key enum is closed
-
-Only these seven keys are accepted; anything else is an error.
+### Metadata keys
 
 | Key             | Required? | Notes                                                                 |
 | --------------- | --------- | ---------------------------------------------------------------------- |
-| `Effort`        | yes       | Must be a key in the active executor's `[effort_map.<provider>]` (see below). |
+| `Effort`        | yes       | A key in the active executor's `[effort_map.<provider>]`. |
 | `Depends-on`    | yes       | YAML-style array, e.g. `[task-1, task-2]`. Empty array is `[]`.        |
 | `Max-Attempts`  | no        | Positive integer. Falls back to `defaults.max_attempts` in config.     |
-| `Skills`        | no        | Comma-separated skill names; user-managed (see below).                 |
+| `Skills`        | no        | Comma-separated skill names. You install these yourself (see below). |
 | `Agent-timeout` | no        | Duration with an explicit unit: `30s`, `15m`, `1h`. Bare integers fail. |
-| `Category`      | no        | Free-form label. Absent → grouped as `Uncategorized` in reports.       |
-| `Frozen`        | no        | Comma-separated globs of paths the agent must not modify (see below).  |
+| `Category`      | no        | Free-form label. If absent, the task is grouped as `Uncategorized` in reports. |
+| `Frozen`        | no        | Comma-separated globs of paths the agent must not modify.  |
 
-Each line is exactly `**Key**: value` — the key must be bold-wrapped, with no leading whitespace.
+<details markdown="1">
+<summary>Frozen paths and skills in detail</summary>
 
-**Frozen paths.** `**Frozen**` lists glob patterns naming files the agent must not touch during the task. Patterns are root-anchored; `*` stays within one path segment, `**` crosses directories, and negation is not supported. Run-wide globs can also be set in `[verification] protected_paths` config — the two sources are enforced as a union. After each iteration, zurdo diffs the tree against **that task's** baseline — captured at the task's first attempt and reused across its retries, so a task is never charged for an earlier task's legitimate edits. A modified frozen path fails the iteration **regardless of criteria results**, and the retry prompt tells the agent to revert. Untracked files count: a path that didn't exist when the baseline was captured is still protected once created, and (since v1.13.1) freezing a glob over an untracked path no longer fails every attempt on its own. Enforcement needs the baseline, so outside a git repo it degrades to a warning. See [How it works](how-it-works.md#evidence-integrity).
+**Frozen paths.**
+- **Glob syntax.** Patterns are anchored at the repo root. `*` stays within one path segment, `**` crosses directories, and negation isn't supported.
+- **Run-wide globs.** You can also set them in `[verification] protected_paths` config. Zurdo enforces both lists together.
+- **Per-task check.** After each iteration, zurdo diffs the tree against *that task's* baseline. The baseline is captured at the task's first attempt and reused for its retries, so a task is never charged for an earlier task's edits.
+- **Failure.** Touching a frozen path fails the iteration no matter what the criteria say, and the retry prompt tells the agent to revert it.
+- **Untracked files.** They're covered: a path that didn't exist at capture time is protected once it's created. Freezing a glob over an untracked path doesn't fail every attempt on its own.
+- **Outside a git repo**, enforcement drops to a warning, because it needs the baseline. See [How it works](how-it-works.md#evidence-integrity).
 
-**Skills are user-managed.** Skills named in `**Skills**` are not installed by zurdo. Put them where your provider discovers them — project scope (`.claude/skills/<name>/` for Anthropic, `.agents/skills/<name>/` for Codex/Copilot), global scope (e.g. `~/.claude/skills/`), or custom directories via `[skills] search_paths` in config. Zurdo warn-checks their existence at pre-flight but never installs them. List bare names only — zurdo applies the provider-appropriate prefix (`/` for Anthropic and Copilot, `$` for Codex) at prompt-render time.
+**Skills are user-managed.** Zurdo never installs the skills you name in `**Skills**`. It only warns at pre-flight if they're missing. Put them where your provider finds them:
+- project scope: `.claude/skills/<name>/` for Anthropic, `.agents/skills/<name>/` for Codex and Copilot
+- global scope: for example `~/.claude/skills/`
+- custom directories, via `[skills] search_paths` in config
 
-## Rule 4: every acceptance criterion needs at least one hint
+List bare names only. Zurdo adds the provider's prefix when it renders the prompt: `/` for Anthropic and Copilot, `$` for Codex.
 
-Acceptance criteria are GFM task-list items (`- [ ]`). Trailing `[hint]` blocks are greedily consumed from the end of the line. A criterion with no hint is a validation error — `[manual]` must be explicit if human review is what you mean.
-
-```markdown
-- [ ] cargo test passes [shell: cargo test --workspace]
-- [ ] design review signed off [manual]
-```
-
-Multiple hints on one criterion are AND'd — all must pass:
-
-```markdown
-- [ ] the build succeeds and emits the binary [shell: cargo build] [file-exists: target/debug/zurdo]
-```
-
-All seven core hint types, their semantics, and the common authoring pitfalls are on the [Hints reference](hints.md) page. With `[lumen] enabled = true` there are three more — the `[symbol:]`/`[references:]`/`[callers:]` hints that verify code facts by static analysis; see [Structural verification](lumen.md). Before writing one, `zurdo lumen query --name <name>` shows the exact kind and qualified name the index records, so the hint resolves on the first try.
-
-## Rule 5: effort values come from your config, not a fixed enum
-
-The grammar does **not** hardcode `low | medium | high`. `**Effort**` is validated against the active executor's `[effort_map.<provider>]` block at pre-flight. If your `[effort_map.anthropic]` only defines `low` and `high`, then `**Effort**: medium` is rejected for an Anthropic-executor run.
-
-The default `zurdo init` config defines `low | medium | high` for all three bundled providers, so most users never think about this — it matters the moment you customize the map. See [Configuration](configuration.md).
+</details>
 
 ## Requirement traceability (optional)
 
-A task may carry a `### Requirements` block naming what it must achieve, one bullet per requirement, and criteria may link back with a `[proves:<req-id>]` modifier:
+You can list what a task must achieve, then mark which criterion proves each item:
 
 ```markdown
-## Task: task-auth — Add token-based authentication
-**Effort**: medium
-**Depends-on**: []
-
 ### Requirements
-
 - req-auth-1: Tokens must expire after 24 hours
 - req-auth-2: Expired tokens must be rejected with HTTP 401
 
 ### Description
-
-Add JWT-based authentication. Tokens expire after 24 hours. Requests with
-expired tokens must receive a 401 response.
+Add JWT-based authentication. …
 
 ### Acceptance Criteria
-
 - [ ] token expiry is enforced [shell: cargo test auth::token_expiry] [proves:req-auth-1]
 - [ ] expired token rejected [http: GET http://localhost:8080/protected -> 401] [proves:req-auth-2]
 - [ ] full test suite passes [shell: cargo test --workspace]
 ```
 
-The rules, all machine-checked:
+| Check | Result |
+| --- | --- |
+| `### Requirements` appears after `### Description` | error |
+| An id doesn't match `^req-[a-z0-9-]+$`, or is duplicated within the task | error |
+| `[proves:<id>]` names a requirement this task doesn't declare | error |
+| A declared requirement has no criterion proving it | `uncovered-requirement` warning from `validate` and `analyze`. It's an error under `--strict`. |
 
-- **Placement.** `### Requirements`, when present, must appear **before** `### Description`.
-- **Id shape and uniqueness.** `req-id` matches `^req-[a-z0-9-]+$` and must be unique within the task — duplicates are validation errors.
-- **Dangling references are `validate` errors.** Every `[proves:<req-id>]` must reference a requirement declared in the same task's block.
-- **Uncovered requirements are warnings.** A declared requirement no criterion proves is an `uncovered-requirement` warning from both `zurdo validate` and `zurdo analyze` — and an error under `validate --strict`.
-
-`[proves:]` is a modifier, not a hint — it runs no check and never gates the criterion. Place it after all hint blocks on the line. Criteria without it are valid (they still gate the task, just untraced), and multiple criteria may prove the same requirement.
+`[proves:]` is a modifier, not a hint. It runs no check, so put it after the hints on the line. A criterion without it still gates the task, just without a trace. Several criteria can prove the same requirement.
 
 ## Pre-authored tests
 
-A criterion like `[shell: cargo test login_rejects_missing_password]` is only as honest as the test it runs — and if the agent writing the feature also writes that test, it controls both sides. A **pre-authored test** (the convention `zurdo-prd-author` teaches since v1.17.0) closes that gap: you write the test **before** the run and commit it with the PRD, so the agent can only make it pass.
+A `[shell: cargo test my_test]` criterion is only as honest as the test it runs. If the agent writes both the feature and the test, it controls both sides of the check. Instead, **write the test before the run** and commit it with the PRD. Then the agent can only make it pass. The `zurdo-prd-author` skill teaches this pattern.
 
-The test has to be committed in a way that doesn't run yet, or CI goes red on the PRD commit. Rust shape:
+Mark the test as ignored so CI stays green on the PRD commit:
 
 ```markdown
 ### Description
@@ -186,38 +199,73 @@ this task may make to that file is removing the `#[ignore …]` attribute.
 - [ ] no pre-authored test for this task is still ignored [no-grep: #\x5bignore in tests/preauthored_task_03.rs]
 ```
 
-The load-bearing details:
+<div class="lp-cards" markdown="1">
+<div markdown="1">
+**Use `--include-ignored`, never `--ignored`**
+`--ignored` runs *only* ignored tests. After the agent removes the attribute, it matches nothing, and the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails) fails the criterion.
+</div>
+<div markdown="1">
+**The `[no-grep:]` guard**
+It forces the marker's removal. `#\x5b` is a literal `[`, because the hint tokenizer rejects an unclosed `[`. The prefix also catches a bare `#[ignore]`. Don't mention the attribute in a comment in that file, or the guard will match forever.
+</div>
+<div markdown="1">
+**One file per task**
+The guard is scoped to a single file. Put the instruction paragraph in the task's `### Description`, because the PRD preamble never reaches the agent.
+</div>
+<div markdown="1">
+**Stub what doesn't exist**
+Commit a `todo!()` stub for any function the test calls. `#[ignore]` stops a test from running, not from compiling.
+</div>
+</div>
 
-- **The reason string** `#[ignore = "pre-authored: <task-id>"]` marks the test as waiting for a task, not permanently quarantined.
-- **`-- --include-ignored`, never `--ignored`.** `--ignored` runs *only* ignored tests, so once the agent correctly removes the attribute the filter matches nothing and the [empty-test-run check](hints.md#a-shell-hint-that-runs-no-tests-fails) fails the criterion.
-- **The `[no-grep:]` guard** forces the marker's removal. It uses `#\x5b` (a literal `[`) because the hint tokenizer rejects an unclosed `[` inside a hint (the readable spelling fails validation), and the prefix match has to catch both the marked and a bare `#[ignore]`. Don't spell the attribute in a comment in that file — the guard would match it forever.
-- **One file per task**, since the guard is file-scoped. The Description paragraph goes in the task's `### Description`; the PRD preamble never reaches the executor.
-- **Commit a signature stub** (`todo!()`) for any function the test calls that doesn't exist yet — `#[ignore]` stops a test running, not compiling.
+**Before committing, run the hint yourself.** It must fail **on an assertion** or a `todo!()` panic. A compile error or a zero-test run doesn't count. If a test genuinely can't come first, explain why in the task's `.trail.md`.
 
-Go uses a build tag instead: `//go:build preauthored` on a dedicated `_test.go` file, a hint like `[shell: go test -tags=preauthored -run '^TestX$' -count=1 ./...]`, and a `[no-grep: //go:build preauthored in …]` guard. `-count=1` is mandatory (Go caches passes — the [`cached-verification`](hints.md#the-warn-lint-families) lint flags its absence), and `t.Skip()` is off-limits because a skipped test is a passing package.
+<details markdown="1">
+<summary>The same pattern in Go</summary>
 
-Before committing the PRD, run the hint yourself: it must fail, and fail **on an assertion** (or a `todo!()` panic) — not on a compile error, and not on a zero-test demotion. Where a test genuinely can't come first, say why in the task's `.trail.md`.
+- Put the test in a dedicated `_test.go` file tagged `//go:build preauthored`.
+- Use a hint like `[shell: go test -tags=preauthored -run '^TestX$' -count=1 ./...]`.
+- Add a guard: `[no-grep: //go:build preauthored in …]`.
+- `-count=1` is mandatory. Go caches passing results, and the [`cached-verification`](hints.md#the-warn-lint-families) lint flags a missing flag.
+- Don't use `t.Skip()`: a skipped test still counts as a passing package.
+
+</details>
 
 ## Authoring with the bundled skills
 
-If your agent provider is set up, the bundled `zurdo-prd-author` skill turns PRD authoring into a guided, evidence-first interview — it drafts the acceptance criteria first, derives tasks from them, then renders the grammar — and pressure-tests every criterion until its hint actually verifies. `zurdo init` installs it; invoke it from your agent CLI like any other skill.
+```mermaid
+flowchart LR
+    IDEA["Idea"] --> DESIGN["zurdo-design-author<br/>(too big for one PRD)"]
+    IDEA --> AUTHOR["zurdo-prd-author"]
+    DESIGN --> AUTHOR
+    AUTHOR --> PRD["PRD + .trail.md<br/>(+ lessons)"]
+    PRD --> RUN["zurdo run"]
+    RUN --> REVIEW["zurdo-prd-review"]
+    REVIEW -->|gap found| FOLLOW["follow-up PRD"]
+```
 
-Alongside the PRD it writes a `<prd-name>.trail.md` **reasoning sidecar** — a record of why each decision was made, never parsed by zurdo — which the `zurdo-hint-debugger` skill reads later when a criterion fails. In a repo with a [lesson library](reason.md), the pressure-test phase consults it read-only, folding known repo quirks into the criteria before they can cost a run — and when the interview settles a correction worth remembering, the skill writes it as a new `lessons/lesson-<hash8>.md` file to commit alongside the PRD.
+- **`zurdo-prd-author`** runs an evidence-first interview. It drafts the criteria first, derives tasks from them, and pressure-tests every hint until it truly verifies. It also writes a `<prd-name>.trail.md` sidecar recording *why* each decision was made. Zurdo never parses the sidecar, but `zurdo-hint-debugger` reads it when a criterion fails.
+- **Lessons.** When a [lesson library](reason.md) exists, the author skill reads it to fold in known repo quirks. When the interview settles a correction worth keeping, it writes a new `lessons/lesson-<hash8>.md` for you to commit with the PRD.
+- **`zurdo-design-author`** comes first when the work is too big for one PRD. It writes a `docs/design/<topic>.md` record with rejected alternatives and phases that have observable exit criteria. Every claim marked as new needs a measured number.
+- **`zurdo-prd-review`** comes after a run. It compares the diff with what each task *meant*, and turns any gap into a follow-up PRD instead of editing the original. See [Skills](how-it-works.md#skills).
 
-Two more skills bracket it:
-
-- **Before:** `zurdo-design-author` (v1.20.0) is for work too big for one PRD. It produces a `docs/design/<topic>.md` record — alternatives considered and rejected, phases with observable exit criteria — and every claim marked new must carry a measured number.
-- **After:** `zurdo-prd-review` (v1.17.0) reads a finished run's diff against what each task *meant* and, if anything is missing or drifted, scaffolds a follow-up PRD rather than editing the original. See [Skills](how-it-works.md#skills).
-
-If a lesson says every PRD touching some area must include a particular check, it can carry an [obligation](reason.md#obligations-lessons-that-bind-future-prds); `zurdo analyze` then warns about any PRD that leaves the check out.
+`zurdo init` installs all of them. Invoke them from your agent CLI like any other skill. A lesson can also carry an [obligation](reason.md#obligations-lessons-that-bind-future-prds): a check that every PRD touching some area must include. `zurdo analyze` warns about any PRD that leaves it out.
 
 ## Validate early, analyze before you spend
 
 ```sh
-zurdo validate prds/feature.md              # deterministic grammar + dep-graph checks
-zurdo analyze prds/feature.md               # + hint lints and LLM critique
+zurdo validate prds/feature.md              # free, instant: grammar, dep graph, lints
+zurdo analyze prds/feature.md               # + lesson obligations and an LLM critique
 ```
 
-`validate` catches structural errors instantly and for free, along with nine of the ten [lint families](hints.md#the-warn-lint-families); add `--strict` to make the six promotable ones errors. `zurdo analyze` additionally checks lesson obligations and flags hints that prove nothing (see [Hints reference](hints.md#beware-vacuous-hints-and-tautologies)) and criteria too vague to verify — before any tokens are spent on a run.
+<figure class="lp-terminal" aria-label="zurdo validate warning about criteria that prove nothing">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo validate prds/docs.md</span></div>
+<pre class="lp-terminal__body"><code><span class="t-warn">prds/docs.md:15: warning:</span> task `task-1` shell hint `true` is a no-op and proves nothing about its criterion
+<span class="t-warn">prds/docs.md:16: warning:</span> task `task-1` grep pattern `hello` already matches `main.rs` in the current working tree — the criterion may not prove the change
+<span class="t-warn">prds/docs.md:17: warning:</span> task `task-1` criterion's only proof greps `README.md` for `Usage section`, a phrase the criterion itself names — the agent satisfies it by writing the phrase
+<span class="t-warn">prds/docs.md:9: warning:</span> task `task-1` requirement `req-ci` is not proven by any criterion
+<span class="t-ok">OK</span></code></pre>
+<figcaption class="lp-terminal__caption"><span class="lp-dot" aria-hidden="true"></span>With --strict, these four warnings become errors and the command exits 2.</figcaption>
+</figure>
 
-Next: [Hints reference](hints.md)
+`validate` runs nine of the ten [lint families](hints.md#the-warn-lint-families). `--strict` turns the six promotable ones into errors. `zurdo analyze` also checks lesson obligations and flags [hints that prove nothing](hints.md#beware-vacuous-hints-and-tautologies) and criteria too vague to verify, all before a run spends any tokens.

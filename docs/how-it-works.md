@@ -19,65 +19,96 @@ page_nav:
 mermaid: true
 ---
 
+Zurdo turns a PRD into a dependency-ordered task list and runs the tasks **one at a time**. An agent does the work, and zurdo checks the result itself. It never asks the agent whether it passed.
+
 ## The verification loop
-
-Zurdo parses your PRD into a dependency-ordered list of tasks and runs them **sequentially**. Each task goes through the same loop:
-
-1. **Pre-flight.** Before invoking any agent, zurdo runs the task's acceptance criteria against the working tree as-is. The per-criterion verdicts are recorded once in `prd.json` (`preflight_results`) — this "iteration 0" snapshot is what later separates *the agent made this true* from *this was already true*. If everything already passes, the task is marked done without spending a single token. The snapshot is written once and never refreshed, so when a *resumed* run short-circuits a task, the verdicts it actually decided on are recorded separately as `preflight_pass`, with a timestamp (v1.22.0). `zurdo report`'s `passed_at_preflight` reads that record. A task whose criteria are *all* `[manual]` short-circuits here to `passed-pending-review` and never invokes the agent.
-2. **Agent iteration.** Zurdo renders a prompt from the task's description and shells out to your configured agent CLI (`claude`, `codex`, or `copilot`). The prompt also lists the files the task's criteria point at, whether each exists yet and whether it's frozen (the [`# Evidence Paths`](configuration.md#context-priming) section), plus any matching [lessons](reason.md#lessons). The agent works directly against your working tree.
-3. **Independent verification.** When the agent exits, zurdo runs **every** hint on every criterion itself — shell commands, HTTP probes, file checks, greps, and (opt-in) [structural hints](hints.md#structural-hints) resolved against the Lumen code index. The agent's own claims about what it did are never consulted. Frozen paths are checked here too: if the diff against the task's baseline touches a path frozen by `**Frozen**` metadata or `[verification] protected_paths` config, the iteration fails regardless of criteria results.
-4. **Retry or settle.** If any automated hint fails (or a frozen path was modified) and the attempt budget (`Max-Attempts`) has room, the loop goes back to step 2 — and the retry prompt carries the prior attempt's failing checks (hint, typed failure reason, captured stdout/stderr) plus the tail of the agent's own narrative, so the agent knows exactly what just failed. If the budget is exhausted, the task is marked `failed`. Tasks depending on a failed task become `blocked-by-dependency`.
-5. **Stall detection and diagnosis.** Every failing iteration is fingerprinted; consecutive attempts failing the *same way* mark the task **stalled** — the agent is repeating itself, not converging. With the opt-in `[reason]` subsystem enabled, a stall triggers a single reasoner LLM call that either guides the next attempt, routes a misaimed hint to `zurdo heal`, or halts the task early to stop wasted spend — and a task that stalls then recovers leaves behind a **lesson** future runs get told about. The full lifecycle is on [Diagnosis & lessons](reason.md).
-6. **Completion gate (optional).** Once every task is `passed` or `passed-pending-review`, zurdo runs `[verification] completion_command` — one repository-wide check such as the full test suite — and exits `9` if it fails or times out. See [The completion gate](configuration.md#the-completion-gate).
 
 ```mermaid
 flowchart LR
-    PRD["PRD<br/>(markdown)"] --> PARSE["Parser<br/>+ Validator"]
-    CONFIG[".zurdo/config.toml"] --> PARSE
-    PARSE --> GRAPH["Dep graph<br/>topo sort"]
-    GRAPH --> LOOP
-
-    subgraph LOOP ["Per-task loop (sequential)"]
-        direction TB
-        PREFLIGHT["Pre-flight<br/>(run criteria first)"] -->|all pass| DONE
-        PREFLIGHT -->|some fail| AGENT["Invoke agent CLI<br/>(claude · codex · copilot)"]
-        AGENT --> VERIFY["Verifier<br/>(shell · http · file · grep · structural)"]
-        VERIFY -->|pass| DONE["Mark task<br/>passed"]
-        VERIFY -->|fail, budget left| STALLQ{"Same failure<br/>as last attempt?"}
-        STALLQ -->|"no — or stalled with<br/>[reason] off"| AGENT
-        STALLQ -->|"stalled + [reason] on"| DIAG["Reasoner diagnosis:<br/>guide · route to heal · halt"]
-        DIAG -->|guidance| AGENT
-        DIAG -->|halt_task| FAIL
-        VERIFY -->|budget exhausted| FAIL["Mark task<br/>failed"]
-    end
-
-    DONE --> STATE
-    FAIL --> STATE
-    LOOP -->|"all tasks passed"| GATE["Completion gate<br/>(optional, exit 9 on failure)"]
-    GATE --> STATE
-
-    subgraph STATE [".zurdo/&lt;slug&gt;/"]
-        direction LR
-        PRDJSON["prd.json<br/>(source of truth)"]
-        PROGLOG["progress.log<br/>(JSONL events)"]
-        ITERS["iterations/<br/>(.out/.err/.prompt)"]
-        REPORTS["reports/<br/>(json · md)"]
-    end
+    PRE{"Pre-flight:<br/>criteria already pass?"} -->|yes| FREE["passed<br/>(0 tokens)"]
+    PRE -->|no| AGENT["Agent CLI works<br/>on your tree"]
+    AGENT --> VERIFY{"zurdo runs<br/>every hint"}
+    VERIFY -->|pass| PASS["passed"]
+    VERIFY -->|fail| BUDGET{"Attempts<br/>left?"}
+    BUDGET -->|no| FAIL["failed"]
+    BUDGET -->|yes| STALL{"Same failure<br/>as last time?"}
+    STALL -->|"no: retry with<br/>the failing checks"| AGENT
+    STALL -->|"yes: stalled,<br/>reason enabled"| DIAG["Diagnose:<br/>guide · heal · halt"]
+    DIAG --> AGENT
 ```
+
+1. **Pre-flight.** The task's criteria run against the tree before any agent call. If they all pass, the task is done for free. The verdicts are recorded once, so later you can tell *the agent did this* apart from *this was already true*.
+2. **Agent iteration.** Zurdo renders a prompt from the task description, the [evidence paths](configuration.md#context-priming), and any matching [lessons](reason.md#lessons). It then shells out to `claude`, `codex`, or `copilot`.
+3. **Independent verification.** Zurdo runs every [hint](hints.md) itself: shell, HTTP, file, grep, and [structural](lumen.md). A change to a [frozen path](#evidence-integrity) fails the iteration.
+4. **Retry or settle.** On failure, the retry prompt carries the exact failing checks. When `Max-Attempts` runs out, the task is marked `failed`.
+5. **Stall detection.** When two attempts fail the same way, the task is marked *stalled*. With `[reason]` on, one diagnosis call can guide the next attempt, hand the hint to `zurdo heal`, or halt the task. See [Diagnosis & lessons](reason.md).
+6. **Completion gate** *(optional).* After every task passes, `completion_command` (for example, your full test suite) runs once. If it fails, zurdo exits `9`. See [The completion gate](configuration.md#the-completion-gate).
+
+Here's a real run. The first task already passed at pre-flight. The second missed twice, stalled, then passed:
+
+<figure class="lp-terminal" aria-label="zurdo run output showing pre-flight, retries, a stall, and the run summary">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo run prds/greeter.md</span></div>
+<pre class="lp-terminal__body"><code><span class="t-dim">─── task-greet: Write the greeter ─── effort=low, deps=[]</span>
+  <span class="t-ok">✓ task-greet: passed in 0 iterations</span> <span class="t-dim">(—)</span>
+<span class="t-dim">─── task-docs: Document the greeter ─── effort=low, deps=[task-greet]</span>
+  <span class="t-acc">→</span> iteration 1 of 3 <span class="t-dim">(max-attempts=3, agent-timeout=30m 00s)</span>
+  <span class="t-ok">✓</span> agent completed: exit=0, 273ms
+    <span class="t-bad">✗</span> file-exists: README.md
+      <span class="t-dim">stderr tail: path does not exist</span>
+  <span class="t-acc">→</span> iteration 2 of 3
+  <span class="t-ok">✓</span> agent completed: exit=0, 54ms
+    <span class="t-bad">✗</span> file-exists: README.md
+  <span class="t-warn">⚠ task-docs: stalled — attempt 2 repeats fingerprint sha256:9a5a07c7… (2 consecutive attempts)</span>
+  <span class="t-acc">→</span> iteration 3 of 3
+  <span class="t-ok">✓</span> agent completed: exit=0, 55ms
+    <span class="t-ok">✓</span> file-exists: README.md
+  <span class="t-ok">✓ task-docs: passed in 3 iterations</span> <span class="t-dim">(459ms)</span>
+<span class="t-dim">═══ Run Summary ═══</span>
+  task-greet           passed (pre-flight)    0/3   —       —
+  task-docs            passed                 3/3   459ms   1/1
+  passed-at-preflight  <span class="t-warn">2 criteria — proved nothing about this run</span></code></pre>
+<figcaption class="lp-terminal__caption"><span class="lp-dot" aria-hidden="true"></span>The agent said "Done!" both times it missed. Zurdo checked the tree, not the claim.</figcaption>
+</figure>
 
 ## Task statuses
 
-| Status                   | Meaning                                                                    |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `pending`                | Not yet attempted.                                                         |
-| `passed`                 | All automated hints passed.                                                |
-| `passed-pending-review`  | Automated hints passed (or none exist); one or more `[manual]` criteria await human sign-off in [`zurdo review`](usage.md#reviewing-a-run-with-zurdo-review) — signing the last one flips the task to `passed`. |
-| `failed`                 | The `Max-Attempts` budget was exhausted with at least one hint still failing. |
-| `blocked-by-dependency`  | A task it `Depends-on` finished `failed`. **Re-derived on resume** (v1.8.0) from the current dependency graph rather than treated as terminal — fix and re-run the failed dependency and its dependents unblock on the next resume, no `--reset` needed. |
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "passed-pending-review" as review
+    state "blocked-by-dependency" as blocked
+    [*] --> pending
+    pending --> passed: all hints pass
+    pending --> review: hints pass, [manual] remains
+    review --> passed: zurdo review signs off
+    pending --> failed: Max-Attempts spent
+    pending --> blocked: a dependency failed
+    blocked --> pending: dependency fixed, re-run
+```
+
+- **`passed-pending-review`**: the automated checks passed, and at least one `[manual]` criterion is waiting for sign-off in [`zurdo review`](usage.md#reviewing-a-run-with-zurdo-review).
+- **`blocked-by-dependency`**: zurdo re-derives this on every resume, so it isn't final. Fix the failed dependency, re-run, and the blocked tasks unblock. You don't need `--reset`.
 
 ## State directory layout
 
-Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside the PRD. The slug is deterministic: `<basename>-<sha1(repo-relative-path)[0..4]>`, so the same PRD always resolves to the same directory (`zurdo state where <prd>` prints it).
+Each PRD's state lives at `.zurdo/<slug>/` under the repo root. The slug is deterministic: `zurdo state where <prd>` prints it.
+
+```
+.zurdo/
+├── config.toml            # providers, effort map, defaults
+└── <slug>/
+    ├── prd.json           # source of truth
+    ├── progress.log       # JSONL event stream
+    ├── run-diff.patch     # everything the run changed
+    ├── iterations/        # <task>-<n>.prompt / .out / .err per attempt
+    └── reports/           # <timestamp>.json / .md
+lessons/                   # lesson library — repo root, committed
+```
+
+Every agent call leaves an audit trail: the exact prompt and the agent's stdout and stderr, for each task and attempt.
+
+<details markdown="1">
+<summary>Full layout, including repo-scoped paths</summary>
 
 ```
 .zurdo/
@@ -85,7 +116,7 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
 ├── lumen/                           # optional structural code index (repo-scoped)
 ├── reason/
 │   └── usage.json                   # lesson use counts (repo-scoped)
-└── <slug>/
+└── <slug>/                          # <basename>-<sha1(repo-relative-path)[0..4]>
     ├── prd.json                     # terminal source of truth, atomic writes
     ├── progress.log                 # append-only JSONL event stream
     ├── lock                         # pid + ISO-8601 start time
@@ -94,7 +125,7 @@ Per-PRD state lives at `.zurdo/<slug>/` under the **repo root** — never beside
     ├── baseline-diff.index          # scratch git index used by baseline comparison
     ├── run-diff.patch               # unified diff of agent edits across the run
     ├── review-log.jsonl             # [manual] sign-off chain written by zurdo review
-    ├── heal-log.jsonl               # hash chain of accepted heals (when zurdo heal applied any)
+    ├── heal-log.jsonl               # hash chain of accepted heals
     ├── iterations/
     │   ├── <task-id>-<attempt>.out
     │   ├── <task-id>-<attempt>.err
@@ -109,37 +140,90 @@ lessons/                             # the lesson library — at the repo root, 
 └── lesson-<hash8>.md
 ```
 
-Every agent invocation leaves a full audit trail: the exact prompt sent (`.prompt`), and the agent's stdout/stderr (`.out`/`.err`), per task and attempt.
+`.zurdo/lumen/` (the [Lumen index](lumen.md)), `lessons/`, and `.zurdo/reason/usage.json` belong to the whole repo rather than one PRD, and lessons apply to every PRD. `zurdo run --reset` archives only the slug's state, and these paths survive it.
 
-Some paths are **repository-scoped** rather than per-PRD: `.zurdo/lumen/` (the optional [Lumen structural index](lumen.md) behind structural hints), the [lesson library](reason.md#the-library-is-source-not-state) at **`lessons/`** in the repo root, and its use-count file `.zurdo/reason/usage.json`. Lessons apply to every PRD in the repo. `zurdo run --reset` archives only the slug's state; the repo-scoped paths survive it.
+</details>
 
 <div class="callout callout--info" markdown="1">
-**Note** Add `.zurdo/` to your `.gitignore`. Zurdo prints a one-time hint if you forget — but it never modifies your `.gitignore` itself. Do **not** ignore `lessons/`: lessons are source, reviewed in pull requests like code.
+**Note** Add `.zurdo/` to `.gitignore`. Zurdo reminds you once but never edits the file. Do **not** ignore `lessons/`: lessons are source and get reviewed in pull requests like code.
 </div>
 
 ## Evidence integrity
 
-Verifying is only half the story — v1.2.0 added machinery to show **where the evidence came from**:
+Zurdo doesn't just record the verdicts. It also shows **where the evidence came from**.
 
-**Baseline capture.** Before the first task is evaluated, `zurdo run` snapshots the working tree as you handed it over — tracked, modified, and untracked files alike — recording a git tree hash, a `dirty` flag, and capture metadata at `.zurdo/<slug>/baseline`. The capture never touches your git state (it stages into a scratch index via `GIT_INDEX_FILE`, leaving `.git/index` and the reflog byte-for-byte unchanged), and at run end the full patch of what the run changed lands at `.zurdo/<slug>/run-diff.patch` — the primary evidence the bundled `zurdo-prd-review` skill reads. A resumed run captures a new baseline when it resumes, so its patch covers only the work done since then — and since v1.22.0 the patch says so: it opens with `#` header lines naming the baseline tree hash, when it was captured, and that scope rule. `git apply` skips them, so the patch still applies. Outside a git repo, or with no usable `git` on `PATH`, capture degrades to a single warning and the run proceeds normally.
+<figure class="lp-figure" aria-label="Timeline: a run baseline at start, a per-task baseline at each task's first attempt, a frozen-path check after every attempt, and run-diff.patch at the end">
+<div class="lp-figure__scroll"><svg viewBox="0 0 680 200" role="img">
+  <line class="lp-svg-line" x1="40" y1="90" x2="555" y2="90" stroke-width="2"/>
+  <circle cx="40" cy="90" r="9" class="lp-svg-accent" stroke-width="2"/>
+  <text class="lp-svg-text" x="40" y="60" text-anchor="middle" font-weight="600">Run start</text>
+  <text class="lp-svg-muted" x="40" y="122" text-anchor="middle">run baseline</text>
+  <text class="lp-svg-muted" x="40" y="138" text-anchor="middle">(tree hash)</text>
+  <path class="lp-svg-line" d="M140 40 v8 h190 v-8" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="235" y="32" text-anchor="middle">task-a</text>
+  <rect x="133" y="83" width="14" height="14" transform="rotate(45 140 90)" class="lp-svg-box" stroke-width="1.5"/>
+  <text class="lp-svg-muted" x="140" y="122" text-anchor="middle">task baseline</text>
+  <circle cx="220" cy="90" r="7" class="lp-svg-bad"/>
+  <circle cx="300" cy="90" r="7" class="lp-svg-ok"/>
+  <text class="lp-svg-muted" x="220" y="122" text-anchor="middle">attempt 1</text>
+  <text class="lp-svg-muted" x="300" y="122" text-anchor="middle">attempt 2</text>
+  <path class="lp-svg-line" d="M370 40 v8 h150 v-8" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="445" y="32" text-anchor="middle">task-b</text>
+  <rect x="363" y="83" width="14" height="14" transform="rotate(45 370 90)" class="lp-svg-box" stroke-width="1.5"/>
+  <text class="lp-svg-muted" x="370" y="122" text-anchor="middle">task baseline</text>
+  <circle cx="460" cy="90" r="7" class="lp-svg-ok"/>
+  <text class="lp-svg-muted" x="460" y="122" text-anchor="middle">attempt 1</text>
+  <rect x="555" y="74" width="120" height="32" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="615" y="94" text-anchor="middle">run-diff.patch</text>
+  <text class="lp-svg-muted" x="340" y="178" text-anchor="middle">After every attempt: diff vs. the task's baseline → a touched frozen path fails the attempt</text>
+</svg></div>
+<figcaption>Each task is judged only on its own edits. The run's full change set lands in <code>run-diff.patch</code>.</figcaption>
+</figure>
 
-**Pre-flight provenance.** A criterion that was already green in the pre-flight snapshot is flagged in live progress with the tail `already passed at pre-flight — proves nothing about this run`, and the summary table carries a `passed-at-preflight` tally. Since v1.13.0 a task that reaches terminal `passed` with **zero attempts** is additionally named in a run-end `warning:` line — see [When a task passes without doing anything](usage.md#when-a-task-passes-without-doing-anything). This is provenance, not policy — exit codes and statuses are unaffected; legitimate cases exist (resumed runs, idempotent re-runs, criteria a dependency already satisfied). The point is that a human reading the report can weigh the evidence.
+<div class="lp-cards" markdown="1">
+<div markdown="1">
+**Baseline capture**
+Before the first task, the working tree is snapshotted, untracked files included. Your git index and reflog are left untouched.
+</div>
+<div markdown="1">
+**Pre-flight provenance**
+Criteria that were green before the run are flagged *proves nothing about this run*. A task that passes with zero attempts gets a run-end `warning:`.
+</div>
+<div markdown="1">
+**Evidence-modified warnings**
+If files a hint relies on changed since the baseline, zurdo warns and keeps going. It warns instead of failing because often the task *is* "edit that file".
+</div>
+<div markdown="1">
+**Frozen paths**
+Files matched by `**Frozen**` globs or `[verification] protected_paths` must not change. Touching one fails the attempt, and the retry prompt tells the agent to revert it.
+</div>
+</div>
 
-**Evidence-modified warnings.** When files that hints rely on as evidence have changed since the baseline, zurdo emits a `warning:` diagnostic and continues — a warning, never a failure, since often the task *is* "edit that file". `shell:` and `http:` payloads are treated as opaque (they may reference unbounded external state), so for them the flag signals a detected discrepancy without claiming the criterion is invalid.
+These are provenance signals, not policy: they don't change exit codes or statuses. The guard is *tamper-evident, not tamper-proof*. The baseline lives under `.zurdo/`, which the agent can write to. The backstop is that zurdo re-runs every criterion itself.
 
-**Frozen paths.** The enforcement tier: globs declared per task (`**Frozen**` metadata) or run-wide (`[verification] protected_paths` config) name files the agent must not touch. Any frozen path in the diff fails the iteration regardless of criteria results, and the next prompt opens with a `# Frozen Path Violation` section requiring the revert.
+<details markdown="1">
+<summary>Baseline mechanics in detail</summary>
 
-The diff is **per task** (v1.8.0): each task's baseline is captured at its *first attempt* and reused across its retries, so a task is never charged for edits an earlier task legitimately made, and an agent's own illegal edit on attempt 1 stays visible on attempt 2. The run-start tree is still retained in the same `baseline` file for the review TUI and run-end reporting. Comparison is **tree-to-tree** (v1.13.1), so **untracked paths count in both directions**: a frozen glob naming a file that was untracked at capture time no longer reports as modified on every iteration, and a file the run *created* and never staged no longer escapes the check. Neither side of the comparison touches `.git/index`, so staged work survives a run unchanged — and `run-diff.patch` gains the same symmetry, so files the run created now appear in it and in what `zurdo review` shows.
+- **No git side effects.** Capture stages into a scratch index via `GIT_INDEX_FILE`. `.git/index` and the reflog stay byte-for-byte unchanged, so staged work survives a run.
+- **Per-task diffs.** Each task's baseline is captured at its *first* attempt and reused across retries. A task is never charged for an earlier task's legitimate edits, and an illegal edit made on attempt 1 is still visible on attempt 2.
+- **Tree-to-tree comparison.** Untracked paths count in both directions. A file the run created and never staged can't escape the check, and freezing a glob over a file that was untracked at capture time doesn't false-positive.
+- **Resumed runs** capture a fresh baseline, so `run-diff.patch` covers only the work since the resume. The patch's `#` header lines say so (`git apply` skips them).
+- **`shell:` and `http:` hints** are treated as opaque because they may depend on external state. For them, an evidence-modified flag signals a discrepancy without claiming the criterion is invalid.
+- **Outside a git repo**, or without `git` on `PATH`, capture degrades to one warning. Frozen-path enforcement also becomes a warning.
 
-Honest limit: the baseline lives under `.zurdo/`, inside the agent's writable scope — the guard is tamper-evident, not tamper-proof, backstopped by criteria being independently re-run.
+</details>
 
 ## Resume, locks, and recovery
 
-`zurdo run` is crash-safe by design. Four mechanisms cooperate:
+`zurdo run` is crash-safe. Re-running the same command always picks up where it left off.
 
-**The lock file.** While zurdo is running it holds `.zurdo/<slug>/lock` (pid + ISO-8601 start time). A second `zurdo run` against the same PRD refuses with exit `3` and the offending pid. Stale locks (dead pid) are taken over automatically with a warning — no manual cleanup needed.
-
-**The interactive resume prompt.** When you run against an existing `.zurdo/<slug>/`, zurdo asks:
+| Situation | What zurdo does | Exit |
+| --- | --- | --- |
+| Another run holds `.zurdo/<slug>/lock` | Refuses and prints the pid. A stale lock (dead pid) is taken over automatically. | `3` |
+| State already exists | Asks whether to resume, reset, or abort (below) | — |
+| The PRD file changed since the last parse | Refuses and asks for `--reset`, which archives the old state instead of overwriting it. Edits made through `zurdo heal` are accepted in place. | `4` |
+| Ctrl-C once | Finishes the current iteration, prints the summary, and resumes cleanly next time | — |
+| Ctrl-C twice | Hard kill. The in-flight iteration is dropped on resume and doesn't count as an attempt. | — |
 
 ```
 What would you like to do?
@@ -148,38 +232,25 @@ What would you like to do?
   [A] Abort
 ```
 
-`R` (Enter) continues; `X` archives state under `.zurdo/<slug>/.archive/<ts>/` and starts fresh; `A` exits 0. The prompt is skipped — and defaults to *Resume* — when stdin is not a TTY, or when any of `--resume`, `--reset`, or `--no-prompt` was passed.
-
-**PRD-hash drift.** `prd.json` records the SHA-1 of the whole PRD file at the last successful parse, so **any** byte change counts. If the live PRD now hashes differently, `zurdo run` refuses with exit `4` and asks for `--reset` — your old state is archived, not overwritten. The one exception is an edit made through `zurdo heal`: its `.zurdo/<slug>/heal-log.jsonl` hash chain lets the next run accept the new hash in place, resetting the healed tasks from `failed` to `pending` without `--reset`.
-
-**Ctrl-C.** The first press triggers a graceful exit: the current iteration finishes, the summary table renders with partial state, and the next run resumes cleanly. A second press is a hard kill — the in-flight iteration is dropped at resume time via `progress.log` reconciliation, and `attempts` is not incremented for the dropped iteration.
+The prompt is skipped and defaults to *Resume* when stdin isn't a TTY, or when you pass `--resume`, `--reset`, or `--no-prompt`. Reset moves the old state to `.zurdo/<slug>/.archive/<ts>/`.
 
 ## Skills
 
-Zurdo ships bundled, opinionated skills compiled into the binary. They teach an LLM the zurdo-specific bits — PRD grammar, hint authoring, run-state interpretation — so the agent doesn't rediscover them on every call.
+Zurdo bundles skills that teach your agent the zurdo-specific parts: PRD grammar, hint authoring, and reading run state. `zurdo init` installs them into your provider's discovery path, such as `.claude/skills/` or `.agents/skills/`.
 
-| Skill                    | Reach for it when …                                                                                     |
-| ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `zurdo-design-author`    | The work is bigger than one PRD. Takes an idea to a `docs/design/<topic>.md` record — alternatives considered, phases with observable exit criteria — before any PRD is written. Its rule is **no number, no claim**: every claim marked new carries a measurement. (v1.20.0) |
-| `zurdo-prd-author`       | Authoring a PRD end-to-end, evidence-first: an interview drafts the acceptance criteria first, derives tasks from them, then pressure-tests every criterion until its hint actually verifies — including whether a test the hint runs [exists yet](writing-prds.md#pre-authored-tests). Writes a `<prd-name>.trail.md` reasoning sidecar (never parsed by zurdo) and, for corrections worth remembering, [lesson files](reason.md#lessons). |
-| `zurdo-hint-debugger`    | A criterion failed and you need to know whether the hint is wrong or the code is. Correlates the hint with iteration logs, the tree, and the authoring trail sidecar if present. |
-| `zurdo-state-summary`    | You want a human summary of `prd.json` + `progress.log` with a recommended next action (resume, reset, heal, verify, review, or fix-then-resume). |
-| `zurdo-prd-review`       | A run finished and you want to know whether it built what the PRD *meant*. Reads `run-diff.patch` against each task's intent and classifies every task as landed, landed-with-drift, vacuous-pass, or missed. A clean review ends in a short report; any gap ends in a `zurdo validate --strict`-clean **follow-up PRD**, leaving the original untouched. (v1.17.0) |
-| `zurdo-lessons`          | *Called by the other skills, not by you.* The rules for writing a lesson file: when a correction deserves one, the frontmatter schema, and the two-component match floor. (v1.19.0) |
-| `zurdo-domain`           | *Called by the other skills, not by you.* The discipline for naming things: checking terms against a project's `CONTEXT.md` glossary and keeping the glossary current. (v1.19.0) |
+| Skill | Reach for it when… |
+| --- | --- |
+| `zurdo-design-author` | The work is bigger than one PRD. It turns an idea into a design record with phases and measurable exit criteria. |
+| `zurdo-prd-author` | You're writing a PRD. It drafts criteria first, then pressure-tests every hint until it truly verifies. |
+| `zurdo-hint-debugger` | A criterion failed and you need to know whether the hint is wrong or the code is |
+| `zurdo-state-summary` | You want a plain-English read of run state and the next action to take |
+| `zurdo-prd-review` | A run finished and you want to know whether it built what the PRD *meant*. Any gap becomes a follow-up PRD. |
+| `zurdo-lessons`, `zurdo-domain` | Never: the other skills call these internally to write lessons and keep terminology consistent |
 
-The first five are skills you invoke by name; since v1.19.0 they're marked so the model won't invoke them on its own (honored by Claude Code). The last two are **disciplines** the others call mid-task through the Skill tool.
-
-When the repo has a [lesson library](reason.md), `zurdo-prd-author` (while pressure-testing criteria) and `zurdo-hint-debugger` (while analyzing a failure) both consult it read-only via `zurdo reason match` — a lesson recording a repo quirk is evidence about whether a hint will hold up. Both degrade silently when the library is absent.
-
-`zurdo init` installs them into your provider's native discovery path (e.g. `.claude/skills/<name>/` for Anthropic, `.agents/skills/<name>/` for Codex/Copilot); `zurdo skills list` and `zurdo skills install <name>` manage them afterwards. Installs are idempotent via a `.zurdo-managed` sentinel file in each installed skill.
-
-**PRD-referenced skills** — the ones you declare in a task's `**Skills**` metadata — are user-managed: install them to your provider's discovery path yourself, or point `[skills] search_paths` in config at custom directories. Zurdo checks they exist at pre-flight (warn-only) but never installs or modifies them.
+When the repo has a [lesson library](reason.md), the author and debugger skills check it read-only. Manage installed skills with `zurdo skills list` and `zurdo skills install <name>`. Skills you name in a task's `**Skills**` metadata are yours to install. Zurdo only warns at pre-flight if they're missing.
 
 ## What zurdo deliberately does not do
 
-- **No git automation.** No auto-commit, no auto-branch, no auto-PR. Zurdo reads and verifies your working tree; version control stays in your hands.
-- **No API calls.** Zurdo talks to providers exclusively through their CLIs on your `PATH`, using your existing auth. There are no API keys to give zurdo itself.
-- **No trusting the agent.** Agent stdout is captured for the audit trail, but pass/fail comes only from zurdo executing the hints.
-
-Next: [Installation](installation.md)
+- **No git automation.** Zurdo never commits, branches, or opens PRs.
+- **No API keys.** Zurdo drives provider CLIs already on your `PATH`, using your existing auth.
+- **No trusting the agent.** Agent output is saved for the audit trail, but only zurdo's own checks decide pass or fail.

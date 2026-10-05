@@ -19,131 +19,156 @@ page_nav:
 mermaid: true
 ---
 
-A retry loop that keeps replaying the same failure is burning tokens, not converging. The **reason subsystem** (v1.3–v1.6, extended in v1.11.0, v1.14.0, and v1.21.0) closes that gap in three moves: it *detects* when a task is stalled, it *diagnoses* the stall with one LLM call and decides whether retrying is even worth it, and it *remembers* — keeping **lessons** as reviewable files in your repository that future runs get told about before they trip over the same quirk. When a task dies anyway, a terminal [post-mortem](#post-mortems) explains why to *you*.
+A retry loop that replays the same failure is burning tokens, not converging. The **reason subsystem** does three things about it:
 
-The **LLM half is opt-in and off by default**: with `[reason] enabled = false` (the default) zurdo never calls the reasoner. Two parts don't need the switch, because neither costs a token: stall *detection* is deterministic and always on, and since v1.14.0 lessons already committed under `lessons/` are read and injected into prompts whenever they match — in a repository with no `lessons/` directory that is a no-op.
+<div class="lp-cards" markdown="1">
+<div markdown="1">
+**Detect**
+Spots a stalled task by fingerprinting each failure. Free and always on.
+</div>
+<div markdown="1">
+**Diagnose**
+Makes one LLM call per stall to guide, re-route, or halt the task. Opt-in with `[reason] enabled`.
+</div>
+<div markdown="1">
+**Remember**
+Keeps **lessons** as reviewable files in `lessons/`. Future runs are told about them before they hit the same quirk.
+</div>
+</div>
+
+With `[reason] enabled = false` (the default), zurdo never calls the reasoner. Stall detection and reading lessons that are already committed both work regardless, because neither one costs a token.
 
 ## The lifecycle at a glance
 
 ```mermaid
-flowchart TD
-    FAIL["Iteration fails"] --> FP["Failure fingerprint<br/>(deterministic, free, always on)"]
-    FP -->|"fingerprint changed —<br/>the agent is making progress"| RETRY["Normal retry"]
-    FP -->|"same fingerprint<br/>stall_attempts times"| STALL["Stall detected<br/>(task_stalled event)"]
-    STALL -->|"[reason] disabled"| RETRY
-    STALL -->|"[reason] enabled,<br/>attempts + budget remain"| DIAG["One reasoner call →<br/>diagnosis block"]
-    DIAG --> V{"Verdict"}
-    V -->|retry_with_guidance| INJ["Next prompt carries a<br/># Diagnosis section"]
-    V -->|suggest_heal| ROUTE["Loop continues; a heal routing<br/>is recorded for run end"]
-    V -->|halt_task| HALT["Task stops immediately →<br/>failed, attributed in the report"]
-    INJ --> OUT{"A later attempt<br/>passes?"}
-    ROUTE --> OUT
-    OUT -->|"no"| EXHAUST["Budget exhausted →<br/>failed"]
-    OUT -->|"yes — a recovery"| EXTRACT["Lesson extracted<br/>(one reasoner call)"]
-    EXTRACT --> LIB[("Lesson library<br/>lessons/*.md<br/>git-tracked, cross-PRD")]
-    HEAL["Accepted zurdo heal"] --> LIB
-    SKILLS["Authoring & review skills"] --> LIB
-    LIB -->|"prospective match<br/>(before anything fails)"| FUT1["Future runs: first prompts,<br/>zurdo analyze, zurdo heal,<br/>authoring skills"]
-    LIB -->|"reactive match<br/>(after a failure)"| FUT2["Future runs:<br/>retry prompts"]
+flowchart LR
+    FAIL["Iteration<br/>fails"] --> FP{"Same fingerprint<br/>again?"}
+    FP -->|no| RETRY["Normal retry"]
+    FP -->|"yes: stalled"| DIAG["Reasoner call<br/>(if enabled)"]
+    DIAG -->|retry_with_guidance| RETRY
+    DIAG -->|suggest_heal| RETRY
+    DIAG -->|halt_task| HALT["Task failed<br/>early"]
+    RETRY -->|"later attempt passes"| LESSON[("lessons/*.md")]
+    LESSON -->|"matched in<br/>future runs"| PROMPT["Prompts, analyze,<br/>heal, skills"]
 ```
 
-Everything the reasoner produces is **advisory or subtractive** — it can guide the agent, stop spending, or route a criterion to `zurdo heal`, but no verdict can ever mark a criterion passed, relax a hint, or edit the PRD. Verification stays the exclusive grader.
+Everything the reasoner produces is **advisory or subtractive**. It can guide the agent, stop spending, or point you to `zurdo heal`. It can never mark a criterion passed, relax a hint, or edit the PRD. Verification stays the only grader.
 
 ## Stall detection (always on)
 
-Every failing iteration gets a **failure fingerprint** — a deterministic digest of *what* failed. When `stall_attempts` consecutive attempts (default `2`, minimum `2`) share the same fingerprint, the task is **stalled**: the agent is repeating itself, not converging. Detection is free, needs no LLM, and runs regardless of `[reason] enabled`.
+Every failing iteration gets a **failure fingerprint**: a deterministic digest of *what* failed, including which criterion it was and any frozen-path violation. When `stall_attempts` consecutive attempts (default `2`) share a fingerprint, the task is **stalled**. This fires *before* the budget runs out, while there's still time to act.
 
-A stall surfaces the moment it trips: a `task_stalled` line in the progress stream and `progress.log`, and a `## Fingerprint Stalls` section in `zurdo report`. (This is distinct from the older report field for tasks that exhausted their budget — a fingerprint stall fires *before* exhaustion, while there is still time to act.)
+<figure class="lp-terminal" aria-label="zurdo run output showing a task stalling on a repeated fingerprint">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo run prds/greeter.md</span></div>
+<pre class="lp-terminal__body"><code><span class="t-dim">─── task-test: Add a smoke test ─── effort=low, deps=[task-greet]</span>
+  <span class="t-acc">→</span> iteration 2 of 3
+  <span class="t-ok">✓</span> agent completed: exit=0, 56ms
+    <span class="t-bad">✗</span> file-exists: tests/smoke.rs
+    <span class="t-bad">✗</span> shell: cargo test --test integration
+  <span class="t-warn">⚠ task-test: stalled — attempt 2 repeats fingerprint sha256:b5fc4cd1… (2 consecutive attempts)</span>
+  <span class="t-acc">→</span> iteration 3 of 3
+  <span class="t-dim">…</span>
+  <span class="t-bad">✗ task-test: failed in 3 iterations</span> <span class="t-dim">(348ms)</span></code></pre>
+<figcaption class="lp-terminal__caption"><span class="lp-dot" aria-hidden="true"></span>Stalls also appear as task_stalled in progress.log and under ## Fingerprint Stalls in zurdo report.</figcaption>
+</figure>
 
-Since **v1.8.0** the fingerprint also incorporates **frozen-path violations** and the **criterion index**, so an iteration that fails by touching a frozen path is distinguishable from one that fails a criterion, and two failures at different criteria no longer collide. That changed every fingerprint value: stall history recorded by an earlier zurdo isn't recognized as equal by a newer one. Existing runs proceed normally; they simply start their stall counting over (pass `--reset` if you'd rather start clean).
+<details markdown="1">
+<summary>Upgrading from ≤ 1.7: fingerprint values changed</summary>
+
+Since v1.8.0, fingerprints include frozen-path violations and the criterion index. A frozen-path failure is now distinguishable from a criterion failure, and failures at different criteria no longer collide. Every fingerprint value changed as a result, so stall history from an older zurdo isn't recognized. Existing runs proceed normally and start their stall count over. Pass `--reset` if you'd rather start clean.
+
+</details>
 
 ## Diagnosis blocks
 
-With `[reason] enabled = true`, a detected stall with attempts remaining triggers **one** single-shot LLM call to the **reasoner** role (`[roles.reasoner]`, falling back to `[roles.analyzer]`). The call reads the stalled attempts' evidence and produces a **diagnosis block**: a structurally-verified artifact carrying a hypothesis about *why* the loop is stuck, guidance for the next attempt, a verdict, and a `confidence` (`low` / `medium` / `high`).
+With `[reason] enabled = true`, a stall with attempts remaining triggers **one** LLM call to the **reasoner** role (`[roles.reasoner]`, falling back to `[roles.analyzer]`). It returns a **diagnosis block** containing a hypothesis, guidance for the next attempt, a verdict, and a `confidence` (`low` / `medium` / `high`).
 
-Costs are bounded on two axes: `max_diagnoses_per_task` (default `2`) and `max_reasoner_calls_per_run` (default `20`, shared with lesson extraction). A diagnosis never fires on a task's final attempt — its guidance would have no prompt to land in.
-
-**Fail-open, everywhere.** A reasoner spawn failure, timeout, unparseable reply, or exhausted budget never fails the task — the iteration proceeds exactly as if the subsystem were disabled. The reason subsystem can stop zurdo from wasting money; it can never be the reason a run breaks.
+- **Bounded cost:** at most `max_diagnoses_per_task` calls per task (default `2`) and `max_reasoner_calls_per_run` per run (default `20`, shared with lesson extraction). A diagnosis never fires on a task's final attempt, because there'd be no prompt left to carry it.
+- **Fail-open:** a spawn failure, timeout, unparseable reply, or exhausted budget never fails the task. The iteration proceeds as if the subsystem were off.
 
 ## Verdicts
 
-Every accepted diagnosis block carries exactly one verdict from a closed set:
+| Verdict | What zurdo does |
+| --- | --- |
+| `retry_with_guidance` | Continues on the same budget. The next prompt opens with a `# Diagnosis` section (capped at `guidance_max_bytes`), which the agent can apply or ignore. |
+| `halt_task` | **Stops the task now**, even with attempts left. It's marked `failed` and its dependents become `blocked-by-dependency`. The close-out line reads `halted by reasoner diagnosis (attempt N): <hypothesis>`, and the report gains `## Halt Attributions`. |
+| `suggest_heal` | The *hint* looks misaimed, not the code. The run behaves like `retry_with_guidance`, then at run end prints a `--heal <task> criterion <n>` line and adds a `## Heal Routings` section. Zurdo **never runs heal itself**. |
 
-| Verdict               | What zurdo does                                                                                                                                                          |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `retry_with_guidance` | The loop continues on its unchanged budget; the next prompt opens a `# Diagnosis` section carrying the reasoner's guidance (capped by `guidance_max_bytes`). Explicitly advisory — the agent may apply or ignore it. |
-| `halt_task`           | Zurdo **stops attempting the task immediately**, even with attempts left — the verdict can spend the budget down, never up. The task records the same `failed` status as budget exhaustion, dependents go `blocked-by-dependency`, and the run continues on other tasks. Never silent: the close-out line reads `halted by reasoner diagnosis (attempt N): <hypothesis>` and the report gains a `## Halt Attributions` section. |
-| `suggest_heal`        | The reasoner believes the *hint* is misaimed, not the code. Inside the loop this behaves like `retry_with_guidance`; at run end the routing surfaces as a `--heal <task> criterion <n>` summary line and a `## Heal Routings` report section. Zurdo **never runs `heal` itself** — that stays your call. |
-
-Deliberately absent from the enum: anything that marks a criterion passed, skips it, or weakens a hint. There is no verdict that makes work look done.
+No verdict marks a criterion passed, skips it, or weakens a hint.
 
 ## Post-mortems
 
-A diagnosis speaks to the *agent*. A **post-mortem** (v1.11.0) speaks to **you** — the first reason block whose audience is human.
+A diagnosis speaks to the *agent*. A **post-mortem** speaks to **you**.
 
-It fires under one narrow condition: a stall fingerprint repeating **after** an accepted `retry_with_guidance` block for that same fingerprint. That is the strongest available evidence that the accepted hypothesis was wrong, and the moment the most evidence exists. The task has spent its budget; there is nothing left to guide.
+It fires only when a stall fingerprint repeats **after** an accepted `retry_with_guidance` for that same fingerprint. That repeat is strong evidence the hypothesis was wrong, and by then the budget is spent. A post-mortem can only say `halt_task` or `suggest_heal`; a `suggest_heal` turns a dead run into a concrete `zurdo heal` next step. It appears in `zurdo report`'s `## Diagnoses` table and never changes the run's outcome.
 
-- **Its verdict space is restricted to `{halt_task, suggest_heal}`.** A post-mortem carrying `retry_with_guidance` fails verification and is discarded with a reason — advisory guidance with no subsequent prompt is waste. A `suggest_heal` post-mortem turns a dead run into a concrete `zurdo heal` next action.
-- **Nothing in the runner branches on it.** It is persisted (`kind: post_mortem` under `.zurdo/<slug>/reason/`), priced into the reasoner tally, and rendered from the block store into `zurdo report`'s `## Diagnoses` table. The run's outcome is unchanged by it.
-- **Its evidence bundle sees what the first diagnosis could not:** a never-dropped prior-hypothesis section (the earlier block's hypothesis, guidance, verdict, confidence, citation status, and the observed non-effect) plus **two** narrative projections — the pre-guidance and post-guidance attempts — so the reasoner can check directly whether the agent even followed the guidance.
+<details markdown="1">
+<summary>Post-mortem details</summary>
 
-Cost: one extra reasoner call per persistently-failed task, drawn from the existing per-task allowance of `2` that shipped defaults previously left unreachable. No new config key.
+- A post-mortem carrying `retry_with_guidance` fails verification and is discarded with a reason, because guidance with no later prompt is waste.
+- It's persisted as `kind: post_mortem` under `.zurdo/<slug>/reason/` and counted in the reasoner tally. Nothing in the runner branches on it.
+- Its evidence includes the earlier block's hypothesis, guidance, verdict, confidence, citation status, and the fact that it had no effect. It also gets **two** narrative projections, from before and after the guidance, so the reasoner can check whether the agent followed it.
+- Cost: one extra call per persistently failed task, drawn from the existing per-task allowance of `2`. There's no new config key.
+
+</details>
 
 ## What the reasoner actually reads
 
-The evidence bundle handed to a diagnosis or post-mortem call is assembled by zurdo, never by the model. Two v1.11.0 changes made it far more informative:
+Zurdo assembles the evidence bundle; the model never does.
 
-**A structured projection, not a raw stream tail.** The narrative section used to carry a tail-only slice of the provider's raw event stream. It now renders three parts — the executor's final assistant text, a **numbered tool-call log**, and the run-level error when the stream carried one — built by classifying each parsed event against the per-provider [event vocabulary](providers.md#the-vocabulary-canary) and dropping bookkeeping frames. The old window was pathological on exactly the runs where diagnosis matters most: on one 348 KB transcript the reasoner saw 1.18% of it, and the single largest item in that window was the terminal result envelope — at 40% of the entire budget, almost entirely cost telemetry. An unparseable stream (unknown provider, non-JSON output, a crashed CLI) still falls back to a raw tail.
+- **A structured projection, not a raw log tail.** The bundle holds the executor's final text, a **numbered tool-call log**, and any run-level error. Zurdo builds it by classifying events against each provider's [event vocabulary](providers.md#the-vocabulary-canary) and dropping bookkeeping frames. An unparseable stream falls back to a raw tail.
+- **A 12 KB window that keeps both ends.** Content over budget keeps the head and tail, with a `[… n bytes elided …]` seam in between. A post-mortem's two projections get 6 KB each.
+- **Uncited high confidence is clamped.** Evidence can cite a criterion, a path, or `{"step": N}` (a line of the tool-call log). A `confidence: high` block that cites no step is downgraded to medium and recorded with `confidence_clamped: true`, rather than rejected.
 
-**Its own budget, truncated from both ends.** The narrative window (12 KB) is decoupled from the executor prompt's 4 KB truncation, which stays small deliberately — that prompt is rebuilt every iteration and token economy there is the point. Over-budget projections keep the **head and the tail** with a `[… n bytes elided …]` seam between them: over a tool-call log the head is where an agent picks its paths. A post-mortem's two projections split this budget at 6 KB each rather than doubling it.
+<details markdown="1">
+<summary>Why the projection replaced the raw tail</summary>
 
-**Uncited high confidence is clamped.** Evidence references can point at a criterion, a path, or (new) `{"step": N}` — the Nth line of the numbered tool-call log. A block claiming `confidence: high` while citing no such step is **downgraded to medium** at verification time, with `confidence_clamped: true` recorded on the persisted block rather than silently rewritten. Clamped rather than rejected: an uncited block can still carry correct guidance, and rejecting it would burn a retry that might have worked.
+The old narrative section was a tail-only slice of the provider's raw event stream. It was worst on exactly the runs where diagnosis matters most: on one 348 KB transcript, the reasoner saw 1.18% of it. The largest item in that window was the terminal result envelope, which took 40% of the budget and was almost all cost telemetry.
+
+The 12 KB narrative window is separate from the executor prompt's 4 KB truncation. That prompt stays small on purpose, because it's rebuilt every iteration. Keeping the head matters because over a tool-call log, the head is where an agent picks its paths. Clamping beats rejecting because an uncited block can still carry correct guidance, and rejecting it would burn a retry that might have worked.
+
+</details>
 
 <div class="callout callout--info" markdown="1">
-**Reason-block schema `2`** The bump accommodates the `post_mortem` kind and the `step` evidence-ref shape. Schema mismatches are verification failures, not migrations — blocks persisted under `.zurdo/<slug>/reason/` by an older zurdo are not upgraded in place.
+**Reason-block schema `2`** This schema version adds the `post_mortem` kind and the `step` evidence-ref shape. Schema mismatches are verification failures, not migrations: blocks under `.zurdo/<slug>/reason/` written by an older zurdo are not upgraded in place.
 </div>
 
 ## Out-of-tree path references
 
-An agent that reaches outside the repository — editing `~/.claude/skills/`, writing to `$HOME` — produces work that is invisible to the diff, unauditable, and often the real reason a criterion won't go green. Since v1.11.0 every iteration's captured provider stream is scanned **at capture time** for absolute-path-shaped tokens (structured `file_path` / `path` / `changes[].path` fields and `command` tokens, with a leading `~` or `$HOME` resolved) that fall outside the repo root.
+An agent that edits outside the repo (`~/.claude/skills/`, `$HOME`) produces work the diff can't see, and that's often the real reason a criterion won't pass. Zurdo scans every iteration's provider stream for absolute paths outside the repo root, resolving `~` and `$HOME`. It checks structured `file_path` / `path` / `changes[].path` fields and `command` tokens. Findings are deduplicated and capped at 20.
 
-Findings are deduped by resolved path, kept in first-seen order, and capped at 20 with an explicit overflow marker. They surface on four places:
+| Surface | What appears |
+| --- | --- |
+| `prd.json` | `out_of_tree_refs` on the attempt (omitted when empty) |
+| `progress.log` | An `out_of_tree_refs` event (clean attempts add nothing) |
+| `zurdo report` | `## Out-of-Tree References`, one row per affected attempt |
+| `zurdo review` | An `out-of-tree references:` block per task |
+| Reasoner evidence | A section that's never dropped, even when the bundle is over its cap |
 
-| Surface                    | What appears                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------- |
-| `prd.json`                 | `out_of_tree_refs` on the attempt — omitted entirely when empty, so existing state round-trips unchanged |
-| `progress.log`             | An `out_of_tree_refs` event on attempts that found something; a clean attempt appends nothing |
-| `zurdo report`             | An `## Out-of-Tree References` section, one row per attempt that named such a path         |
-| `zurdo review`             | A task-scoped `out-of-tree references:` block, drawn once per task ahead of the selected criterion's detail |
-
-Plus the reasoner's evidence bundle, where it is a **never-dropped section** — visible to a diagnosis or post-mortem even when the bundle is over its byte cap and every optional section has been dropped.
-
-The pass is **advisory and never gating**: it does not distinguish a read from a write, it never fails an iteration or a run, and the findings are deliberately excluded from the failure fingerprint so they cannot perturb stall detection or diagnosis triggering.
+This scan is **advisory**. It doesn't distinguish reads from writes, never fails anything, and is kept out of the failure fingerprint.
 
 <div class="callout callout--warning" markdown="1">
-**The authoring rule that prevents it** An executor resolves bare dotfile paths against `$HOME`, not the repository root. When a task edits dotfiles, spell the path out in full (`<repo-root>/.claude/skills/`) and pair it with an in-tree criterion that gate-checks the edit actually landed in the repo. The bundled `zurdo-prd-author` skill teaches this rule directly.
+**The authoring rule that prevents it** Executors resolve bare dotfile paths against `$HOME`, not the repo. When a task edits dotfiles, write the full path (`<repo-root>/.claude/skills/`) and add an in-tree criterion that checks the edit landed in the repo. The bundled `zurdo-prd-author` skill teaches this rule.
 </div>
 
 ## Lessons
 
-A **lesson** is a short, reviewable rule about your repository — "tests in `tests/` need the daemon started via `make dev-up` first" — that zurdo tells future runs about *before* they fail on it.
+A **lesson** is a short, reviewable rule about your repository, such as "tests in `tests/` need `make dev-up` first". Zurdo tells future runs about it *before* they fail on it.
 
 ### Where lessons come from
 
-Four sources, each recorded in the lesson's `source.kind`:
+| `source.kind` | Written by | Costs a token? |
+| --- | --- | --- |
+| `StallRecovery` | The runner, when a **stalled** task later **passes**. One reasoner call compares the stuck attempt with the fix and distills a rule. Needs `[reason] enabled` and `extract_lessons`. | Yes |
+| `HealAcceptance` | [`zurdo heal`](commands.md#zurdo-heal--re-aim-misaimed-grep-hints), when you answer `y` to `Apply this heal?`. The lesson is built from the heal log with no provider call. Needs only `extract_lessons`, and isn't written on the non-TTY path. | No |
+| `AuthoringTrail` | The `zurdo-prd-author` skill, for a correction recorded in the PRD's `.trail.md` | Your agent session |
+| `IntentReview` | The `zurdo-prd-review` skill, after a review that produced a follow-up PRD | Your agent session |
 
-| `source.kind`    | Written by                                                                                           | Costs a token? |
-| ---------------- | ------------------------------------------------------------------------------------------------------ | -------------- |
-| `StallRecovery`  | The runner, when a **stalled** task later **passes**. One reasoner call compares the stalled attempt's evidence with the fixing attempt's diff and distills one rule. An ordinary first-attempt pass teaches nothing. Needs `[reason] enabled` and `extract_lessons` (default `true`); charged to `max_reasoner_calls_per_run`. | Yes |
-| `HealAcceptance` | [`zurdo heal`](commands.md#zurdo-heal--re-aim-misaimed-grep-hints), when you answer `y` to `Apply this heal?` (v1.14.0). The heal log already holds everything, so the lesson is built directly from it — old payload, corrected payload, failure class — with **no provider call** and no reasoner role needed. Gated on `extract_lessons` alone. Nothing is written on the non-TTY path or for a rejected heal. | No |
-| `AuthoringTrail` | The bundled `zurdo-prd-author` skill, for a decision in the PRD's `.trail.md` that records a correction someone would otherwise rediscover. | Your agent session |
-| `IntentReview`   | The bundled `zurdo-prd-review` skill, after a post-run review that scaffolded a follow-up PRD (v1.17.0). | Your agent session |
-
-Every write is fail-open: an extraction or library error is logged and never changes the task's or the heal's outcome.
+An ordinary first-attempt pass teaches nothing. Every lesson write is fail-open: an error is logged and never changes the task's or the heal's outcome.
 
 ### The library is source, not state
 
-Since **v1.14.0**, lessons live in a git-tracked **`lessons/`** directory at the repo root, one `lessons/lesson-<hash8>.md` file per lesson — not under `.zurdo/`. **Don't gitignore it.** A lesson is YAML frontmatter plus a markdown body, so it reads like any other change in a PR diff:
+Lessons live in a git-tracked **`lessons/`** directory at the repo root, one `lesson-<hash8>.md` per lesson. **Don't gitignore it.** Each lesson is YAML frontmatter plus a markdown body, so it reads like any other change in a PR:
 
 ```markdown
 ---
@@ -166,42 +191,92 @@ Integration tests under `tests/` need the dev daemon running. Start it with
 `make dev-up` before `cargo test --test integration`, or the suite times out.
 ```
 
-- **Filename.** `<hash8>` is the first 8 hex characters of a hash over `match` and the body only, so the name is stable and identical lessons are deduplicated.
-- **Usage counts live elsewhere.** `uses` and `last_matched_at` are kept in **`.zurdo/reason/usage.json`**, keyed by that hash. A match updates only this file, so running zurdo never modifies a tracked lesson file. A lesson with no usage entry — including one you wrote by hand — counts as zero uses.
-- **Retiring a lesson is `git rm`.** On overflow past `max_lessons` (default `200`), zurdo evicts the lowest-`uses` lessons first, oldest `created_at` first among ties.
-- **Hand-authoring is fine.** The frontmatter keys are a closed set, though, so a typo'd key makes the file unparseable. An unparseable file is skipped (never fatal), and since v1.14.0 it is named in `zurdo reason status` (`reason: library unreadable <path>: <error>`) and warned about at every `zurdo run` pre-flight.
-- **Repository-scoped.** Lessons apply to every PRD in the repo, never across repos. `zurdo run --reset` leaves them alone.
+- **Stable names.** `<hash8>` hashes only `match` and the body, so identical lessons deduplicate.
+- **Use counts live elsewhere.** `uses` and `last_matched_at` are stored in `.zurdo/reason/usage.json`, so a run never modifies a tracked lesson file. A hand-written lesson starts at zero uses.
+- **Retire a lesson with `git rm`.** Above `max_lessons` (default `200`), zurdo evicts the lowest-`uses` lessons first, and the oldest among ties.
+- **Hand-authoring is fine.** The frontmatter keys are a closed set, though. A file with a typo'd key is skipped rather than fatal. It's named in `zurdo reason status` and warned about at every run's pre-flight.
+- **Repo-scoped.** Lessons apply to every PRD in the repo, and `zurdo run --reset` leaves them alone. Per-run diagnosis blocks live separately under `.zurdo/<slug>/reason/` and *are* archived by `--reset`.
 
 <div class="callout callout--warning" markdown="1">
-**Upgrading from ≤ 1.13?** Lessons used to be JSON files under `.zurdo/reason/library/`. v1.14.0 does **not** migrate them: the old directory is neither read nor moved, so an upgraded repository starts with an empty library. Move any lessons worth keeping into `lessons/` yourself.
+**Upgrading from ≤ 1.13?** Lessons used to be JSON files under `.zurdo/reason/library/`. They are **not** migrated: the old directory is neither read nor moved. Move any lessons worth keeping into `lessons/` yourself.
 </div>
-
-Per-run diagnosis blocks live separately under `.zurdo/<slug>/reason/`; `--reset` archives them along with the rest of the slug's state.
 
 ### Matching — deterministic, no embeddings
 
-Each lesson's **match surface** has up to four components: the criteria's **hint types** (`shell`, `grep`, …), typed **failure reasons**, the **shell command head** (`cargo`, `npm`, …), and **directory prefixes** from evidence paths and `**Frozen**` globs. A candidate scores one point per overlapping component and needs **at least 2** to surface — one coincidence is never enough. The practical consequence for hand-written lessons: declare at least two components, or the lesson can never match.
+A lesson matches on up to four components. Each overlapping component scores one point, and **2 points are needed** to surface. One coincidence is never enough, so a hand-written lesson must declare at least two components.
 
-Matching runs in two modes:
+<figure class="lp-figure" aria-label="A lesson's match surface compared with a task's declared surface: hint type, command head, and directory prefix overlap, giving a score of 3">
+<div class="lp-figure__scroll"><svg viewBox="0 0 680 230" role="img">
+  <text class="lp-svg-text" x="270" y="24" text-anchor="middle" font-weight="600">Lesson</text>
+  <text class="lp-svg-text" x="530" y="24" text-anchor="middle" font-weight="600">Task task-test</text>
+  <text class="lp-svg-muted" x="20" y="64">hint types</text>
+  <text class="lp-svg-muted" x="20" y="108">failure reasons</text>
+  <text class="lp-svg-muted" x="20" y="152">command head</text>
+  <text class="lp-svg-muted" x="20" y="196">directory prefixes</text>
+  <rect x="190" y="44" width="160" height="30" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="270" y="64" text-anchor="middle">shell</text>
+  <rect x="190" y="88" width="160" height="30" rx="6" class="lp-svg-box" stroke-width="1.5"/>
+  <text class="lp-svg-muted" x="270" y="108" text-anchor="middle">—</text>
+  <rect x="190" y="132" width="160" height="30" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="270" y="152" text-anchor="middle">cargo</text>
+  <rect x="190" y="176" width="160" height="30" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="270" y="196" text-anchor="middle">tests/</text>
+  <rect x="450" y="44" width="160" height="30" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="530" y="64" text-anchor="middle">shell, file-exists</text>
+  <rect x="450" y="88" width="160" height="30" rx="6" class="lp-svg-box" stroke-width="1.5"/>
+  <text class="lp-svg-muted" x="530" y="108" text-anchor="middle">none yet</text>
+  <rect x="450" y="132" width="160" height="30" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="530" y="152" text-anchor="middle">cargo</text>
+  <rect x="450" y="176" width="160" height="30" rx="6" class="lp-svg-accent" stroke-width="1.5"/>
+  <text class="lp-svg-mono" x="530" y="196" text-anchor="middle">tests/</text>
+  <circle cx="400" cy="59" r="9" class="lp-svg-ok"/>
+  <circle cx="400" cy="147" r="9" class="lp-svg-ok"/>
+  <circle cx="400" cy="191" r="9" class="lp-svg-ok"/>
+  <text class="lp-svg-muted" x="400" y="108" text-anchor="middle">·</text>
+</svg></div>
+<figcaption>3 overlapping components, score 3 ≥ 2: the lesson surfaces for this task.</figcaption>
+</figure>
 
-- **Prospective** — against a task's *declared* surface, before anything fails. Powers first-iteration injection, `zurdo analyze`, `zurdo heal`, and `zurdo reason match`.
-- **Reactive** — against an actual failure's components. Powers retry-prompt injection.
+- **Prospective** matching uses a task's *declared* surface, before anything fails. It powers first-prompt injection, `zurdo analyze`, `zurdo heal`, and `zurdo reason match`.
+- **Reactive** matching uses an actual failure's components. It powers retry-prompt injection.
 
 ### Where lessons appear
 
-| Surface                                  | Section rendered                     | Counts as a "use"? |
-| ---------------------------------------- | ------------------------------------- | ------------------- |
-| Executor prompts during a run            | `# Lessons From Previous Runs` (top `max_lessons_injected`, default `2`) | **Yes** — increments `uses`, stamps `last_matched_at` in `usage.json` |
-| `zurdo analyze`                          | Per-task `== Lessons ==` (every match, both full and `--static-only` passes) | No |
-| `zurdo heal` propose prompt              | `=== LESSONS FROM PREVIOUS RUNS ===`  | No |
-| `zurdo reason match <prd>` (preview CLI) | Per-task match listing                | No |
-| `zurdo-prd-author` (pressure-test phase) and `zurdo-hint-debugger` (failure analysis) | `Lessons from previous runs` | No |
+<figure class="lp-terminal" aria-label="zurdo reason match previewing which lessons apply to each task">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo reason match prds/greeter.md</span></div>
+<pre class="lp-terminal__body"><code>reason: match prds/greeter.md
+reason: task task-greet <span class="t-dim">0 lessons</span>
+reason: task task-docs <span class="t-dim">0 lessons</span>
+reason: task task-test <span class="t-ok">1 lessons</span>
+reason: task task-test lesson <span class="t-acc">source=greeter-a4ed/task-test@3</span> Integration tests under `tests/` need the dev daemon running. …</code></pre>
+<figcaption class="lp-terminal__caption"><span class="lp-dot" aria-hidden="true"></span>A read-only preview that works even with [reason] disabled.</figcaption>
+</figure>
 
-None of these checks `[reason] enabled`. Only real executor-prompt injection updates usage counts, so previews and authoring reads can't protect a lesson no run ever used from eviction. Every injected lesson is attributed to its source, and the prompt section opens with a fixed advisory framing: lessons inform the agent; they never override the task. Provenance renders per source — an attempt number for `StallRecovery`, a criterion index for `HealAcceptance`, `<task-id>, follow-up <path>` for `IntentReview`.
+In a real run, the matching lesson lands in the executor's prompt:
+
+```markdown
+# Lessons From Previous Runs
+
+Lessons distilled from earlier runs in this repository may apply here; verify each against the code before acting on it.
+
+- Integration tests under `tests/` need the dev daemon running. Start it with
+`make dev-up` before `cargo test --test integration`, or the suite times out.
+  (learned in task-test of greeter-a4ed)
+```
+
+| Surface | Section | Counts as a use? |
+| --- | --- | --- |
+| Executor prompts | `# Lessons From Previous Runs` (top `max_lessons_injected`, default `2`) | **Yes** |
+| `zurdo analyze` | Per-task `== Lessons ==` (also with `--static-only`) | No |
+| `zurdo heal` propose prompt | `=== LESSONS FROM PREVIOUS RUNS ===` | No |
+| `zurdo reason match <prd>` | Per-task listing | No |
+| `zurdo-prd-author`, `zurdo-hint-debugger` | `Lessons from previous runs` | No |
+
+None of these check `[reason] enabled`. Only real prompt injection counts as a use, so previews can't protect a lesson from eviction. Lessons are framed as advice: they never override the task. Each one is attributed to its source: an attempt number for `StallRecovery`, a criterion index for `HealAcceptance`, and `<task-id>, follow-up <path>` for `IntentReview`.
 
 ### Obligations: lessons that bind future PRDs
 
-Most lessons are advice. Since **v1.21.0** a lesson can also carry an **obligation** — a `requires` block stating what any PRD it applies to must contain:
+A lesson can also carry an **obligation**, a `requires` block stating what any PRD it applies to must contain:
 
 ```yaml
 requires:
@@ -209,27 +284,34 @@ requires:
   criterion_matching: 'go test (-count=1 )?\./\.\.\.'
 ```
 
-- **`criterion_matching`** is one regex, in the same dialect as `[grep:]` patterns. It is tested against each criterion's prose **and** against each of its hints' source text (`shell: go test -count=1 ./...`), so a requirement that lives entirely inside a command is expressible.
-- **`scope: prd`** — if any task in the PRD matches the lesson's `match` surface, some criterion *anywhere in the PRD* must satisfy the regex; one finding per PRD. **`scope: task`** — each matching task must satisfy it within its own criteria; one finding per task.
-- A missed obligation is an [`unaddressed-lesson`](hints.md#the-warn-lint-families) warning from **`zurdo analyze`** (including `--static-only`); `zurdo validate` never emits it and `--strict` never promotes it. The finding names the lesson file it came from.
-- A lesson with `requires` is **not injected into executor prompts** — it corrects PRD *authors*, and an executor can't act on it. If you need both, write two lessons.
-- Adding `requires` to an existing lesson doesn't change its filename or its usage history.
+- **`criterion_matching`** is a regex in the [`[grep:]`](hints.md) dialect. It's tested against each criterion's prose **and** its hints' source text (`shell: go test -count=1 ./...`).
+- **`scope: prd`**: if any task matches the lesson, some criterion *anywhere in the PRD* must satisfy the regex. **`scope: task`**: each matching task must satisfy it in its own criteria.
+- A miss is an [`unaddressed-lesson`](hints.md#the-warn-lint-families) warning from `zurdo analyze` (including `--static-only`), naming the lesson file. `zurdo validate` never emits it, and `--strict` never promotes it.
+- A lesson with `requires` is **not injected into prompts**, because it's aimed at PRD authors. If you need both behaviors, write two lessons. Adding `requires` doesn't change a lesson's filename or usage history.
 
-This is the per-PRD counterpart of the [completion gate](configuration.md#the-completion-gate): the gate checks a repository-wide rule at run end; an obligation makes sure PRDs that touch a given area keep asking for the right check.
+This is the per-PRD counterpart of the [completion gate](configuration.md#the-completion-gate). The gate checks a repo-wide rule at run end; an obligation makes sure PRDs touching an area keep asking for the right check.
 
 ## The `zurdo reason` CLI
 
-| Command                       | What it does                                                                                                        |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `zurdo reason match <prd>`    | Preview, per task, every library lesson whose prospective match clears the threshold — with each match's originating PRD, task, and provenance. Read-only; works even with `[reason]` disabled. Invalid PRDs are rejected exactly as `zurdo validate` would. |
-| `zurdo reason status`         | The library's lesson count (grouped by match key), one `reason: library unreadable <path>: <error>` line per lesson file that failed to parse, plus each `.zurdo/<slug>/`'s persisted diagnosis-block count. Read-only; the exit code doesn't change for a broken file. |
-| `zurdo reason clear`          | Delete the usage sidecar, `.zurdo/reason/usage.json`, resetting every lesson's use count. It does **not** touch `lessons/` — those are tracked files; retire one with `git rm lessons/<file>.md`. Per-run diagnosis blocks are untouched too. Confirms on a TTY; non-interactive use requires `--yes`. |
+| Command | What it does |
+| --- | --- |
+| `zurdo reason match <prd>` | Previews every lesson that would match each task, with provenance. It's read-only and works with `[reason]` off. Invalid PRDs are rejected as `zurdo validate` would reject them. |
+| `zurdo reason status` | Shows the lesson count by match key, one `library unreadable <path>: <error>` line per broken file, and each slug's diagnosis-block count. It's read-only, and the exit code is unaffected by broken files. |
+| `zurdo reason clear` | Deletes `.zurdo/reason/usage.json`, resetting use counts. It never touches `lessons/` or diagnosis blocks. It asks for confirmation on a TTY; non-interactive use requires `--yes`. |
 
-Per-run diagnosis blocks aren't browsed through `zurdo reason` — they surface in `zurdo report` and the progress log.
+<figure class="lp-terminal" aria-label="zurdo reason status output">
+<div class="lp-terminal__bar"><span class="lp-terminal__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-terminal__title">zurdo reason status</span></div>
+<pre class="lp-terminal__body"><code>reason: library 1 lessons
+reason: library 0 lessons carry an obligation
+reason: library match-key cargo 1 lessons
+reason: greeter-a4ed 0 blocks</code></pre>
+</figure>
+
+Per-run diagnosis blocks aren't browsed here; they surface in `zurdo report` and the progress log.
 
 ## Configuration
 
-The reasoner role and the `[reason]` table are accepted in `.zurdo/config.toml` but **not seeded by `zurdo init`** — add them by hand to opt in:
+`zurdo init` doesn't seed these. Add them by hand to opt in:
 
 ```toml
 [roles.reasoner]                  # optional; falls back to [roles.analyzer]
@@ -240,27 +322,29 @@ model    = "claude-sonnet-4-6"
 enabled = true                    # master switch; default false
 ```
 
-| Key                          | Default | Meaning                                                                                    |
-| ---------------------------- | ------- | -------------------------------------------------------------------------------------------- |
-| `enabled`                    | `false` | Switch for reasoner calls: stall diagnoses, post-mortems, and stall-recovery lesson extraction. Lesson reads and injection, and heal-acceptance lessons, don't check it (v1.14.0). |
-| `stall_attempts`             | `2`     | Consecutive same-fingerprint attempts that define a stall (minimum `2`). Detection itself is always on. |
-| `max_diagnoses_per_task`     | `2`     | Reasoner-call budget per task — a terminal [post-mortem](#post-mortems) draws from the same allowance. |
-| `max_reasoner_calls_per_run` | `20`    | Run-wide cap on all reasoner calls (diagnosis + extraction).                                |
-| `guidance_max_bytes`         | `4096`  | Size cap on the guidance carried into the next prompt.                                      |
-| `extract_lessons`            | `true`  | Write a lesson on every stall→pass recovery (with `enabled`) and every accepted heal.       |
-| `max_lessons_injected`       | `2`     | Top-k lessons injected per executor prompt; `0` disables injection.                         |
-| `max_lessons`                | `200`   | Library cap; overflow evicts lowest-`uses` first, oldest first among ties.                  |
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `false` | Turns on reasoner calls: diagnoses, post-mortems, and stall-recovery lessons. Reading and injecting lessons, and heal-acceptance lessons, ignore it. |
+| `stall_attempts` | `2` | Consecutive same-fingerprint attempts that count as a stall (minimum `2`) |
+| `max_diagnoses_per_task` | `2` | Reasoner calls per task, post-mortems included |
+| `max_reasoner_calls_per_run` | `20` | Run-wide cap on all reasoner calls (diagnosis + extraction) |
+| `guidance_max_bytes` | `4096` | Size cap on guidance carried into the next prompt |
+| `extract_lessons` | `true` | Write a lesson on every stall→pass recovery (with `enabled`) and every accepted heal |
+| `max_lessons_injected` | `2` | Top-k lessons per prompt; `0` disables injection |
+| `max_lessons` | `200` | Library cap; evicts lowest-`uses` first, oldest among ties |
 
 `enabled = true` with neither `[roles.reasoner]` nor `[roles.analyzer]` configured is a config-load error, raised before any PRD is read.
 
 ## Reading the results
 
-`zurdo report` gains seven sections, each omitted entirely when empty: `## Diagnoses` (every persisted reason block — diagnoses and post-mortems alike — with model, token usage, and accepted-or-discarded outcome), `## Fingerprint Stalls`, `## Halt Attributions`, `## Heal Routings`, `## Out-of-Tree References`, `## Lessons Extracted`, and `## Lessons Injected`.
+`zurdo report` adds up to seven sections, and each is omitted when empty:
 
-In `progress.log`, stalls land as `task_stalled` events and every *diagnosis* call as a `diagnosis_outcome` event (accepted or discarded, with verdict, confidence, and token counts when accepted). Post-mortems deliberately emit no `diagnosis_outcome` — that event keeps meaning what it has always meant, a diagnosis whose guidance an attempt is about to carry — and are read from the block store instead.
+- `## Diagnoses`: every reason block, diagnoses and post-mortems alike, with model, tokens, and whether it was accepted
+- `## Fingerprint Stalls`, `## Halt Attributions`, `## Heal Routings`
+- `## Out-of-Tree References`, `## Lessons Extracted`, `## Lessons Injected`
+
+In `progress.log`, stalls are `task_stalled` events, and each diagnosis call is a `diagnosis_outcome` event with its verdict, confidence, and tokens. Post-mortems emit no `diagnosis_outcome`, so that event still means a diagnosis an attempt is about to carry. Post-mortems are read from the block store instead.
 
 <div class="callout callout--info" markdown="1">
-**Note** Reasoner calls are billed LLM calls, visible in the report's token accounting as a separate reasoner tally. The defaults (2 diagnoses per task, 20 calls per run) keep the worst case small relative to the executor spend they exist to prevent.
+**Note** Reasoner calls are billed LLM calls, shown as a separate reasoner tally in the report. With the defaults (2 per task, 20 per run), the worst case stays small next to the executor spend they're meant to prevent.
 </div>
-
-Next: [Commands](commands.md)

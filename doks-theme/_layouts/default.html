@@ -72,17 +72,58 @@
 		{% if page.mermaid %}
 			<script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
 			<script>
+				var graphs = [];
 				document.querySelectorAll('div.language-mermaid, pre > code.language-mermaid').forEach(function (el) {
 					var block = el.closest('div.language-mermaid') || el.closest('pre');
 					var graph = document.createElement('div');
 					graph.className = 'mermaid';
 					graph.textContent = el.textContent;
+					graph.dataset.source = el.textContent;
 					block.replaceWith(graph);
+					graphs.push(graph);
 				});
-				mermaid.initialize({
-					startOnLoad: true,
-					theme: document.documentElement.classList.contains('dark') ? 'dark' : 'neutral',
-					fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif'
+				// Dark: the site's violet over its near-black surfaces, not mermaid's stock dark grey
+				var darkVars = {
+					darkMode: true,
+					background: '#18171c',
+					primaryColor: '#25213a',
+					primaryBorderColor: '#8b6cff',
+					primaryTextColor: '#ececf1',
+					secondaryColor: '#1f1d27',
+					tertiaryColor: '#1f1d27',
+					lineColor: '#9b98a8',
+					textColor: '#ececf1',
+					edgeLabelBackground: '#18171c',
+					clusterBkg: '#1f1d27',
+					clusterBorder: '#3a3646',
+					noteBkgColor: '#2a2540',
+					noteTextColor: '#ececf1',
+					noteBorderColor: '#8b6cff'
+				};
+				var root = document.documentElement;
+				function renderGraphs() {
+					var dark = root.classList.contains('dark');
+					mermaid.initialize({ startOnLoad: false, fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif' });
+					// An init directive per graph; mermaid 9.4 ignores themeVariables passed to initialize()
+					var directive = '%%{init: ' + JSON.stringify(dark
+						? { theme: 'base', themeVariables: darkVars }
+						: { theme: 'neutral' }) + '}%%\n';
+					graphs.forEach(function (graph) {
+						graph.removeAttribute('data-processed');
+						graph.textContent = directive + graph.dataset.source;
+					});
+					// init needs a NodeList; it silently skips a plain array
+					mermaid.init(undefined, document.querySelectorAll('.lp-prose .mermaid'));
+				}
+				// Mermaid 9.4 isn't ready to render until the page has loaded (what startOnLoad waits for)
+				window.addEventListener('load', function () {
+					renderGraphs();
+					// Re-render when the theme toggle flips the html.dark class
+					var wasDark = root.classList.contains('dark');
+					new MutationObserver(function () {
+						var dark = root.classList.contains('dark');
+						if (dark !== wasDark) { wasDark = dark; renderGraphs(); }
+					}).observe(root, { attributes: true, attributeFilter: ['class'] });
 				});
 			</script>
 		{% endif %}
