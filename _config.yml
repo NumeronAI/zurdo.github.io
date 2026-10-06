@@ -26,6 +26,8 @@ zurdo:
           url: /docs/how-it-works.html
         - title: Installation
           url: /docs/installation.html
+        - title: Tutorial
+          url: /docs/tutorial.html
         - title: Usage
           url: /docs/usage.html
         - title: Writing PRDs

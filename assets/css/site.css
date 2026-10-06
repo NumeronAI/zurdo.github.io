@@ -185,6 +185,7 @@ body.lp {
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
   transition: color 120ms, background-color 120ms;
 }
 .lp-nav__link:hover { color: var(--foreground); background: var(--default); }
@@ -203,7 +204,7 @@ body.lp {
 .dark [data-theme-toggle] .lp-icon-sun { display: none; }
 .dark [data-theme-toggle] .lp-icon-moon { display: block; }
 
-@media (max-width: 860px) {
+@media (max-width: 1023px) {
   .lp-nav__links { display: none; }
 }
 
