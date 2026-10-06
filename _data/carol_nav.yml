@@ -9,6 +9,9 @@
     - title: Installation
       excerpt: Homebrew, release tarballs, and the gh login Carol needs.
       url: /carol/installation.html
+    - title: Tutorial
+      excerpt: Carol and zurdo together, one feature end to end.
+      url: /docs/tutorial.html
     - title: Initiatives
       excerpt: scope.md, tickets, PRDs, and the handoff — the files Carol reads.
       url: /carol/initiatives.html
