@@ -16,7 +16,7 @@ page_nav:
         url: '/docs/usage.html'
 ---
 
-You'll build `greet.sh`, a two-task feature, in the demo repo `acme/hello`. Every terminal on this page is real output.
+You'll build `greet.sh`, a two-task feature, in the demo repo `acme/hello`. The terminals show real zurdo and Carol output, trimmed. A scripted stand-in played the agent, so it ran in milliseconds and reported no token counts.
 
 <p class="lp-who"><span class="lp-chip">you</span><span class="lp-chip lp-chip--zurdo">zurdo</span><span class="lp-chip lp-chip--carol">carol</span></p>
 
