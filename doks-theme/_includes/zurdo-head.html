@@ -22,5 +22,5 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="{{ '/assets/vendor/heroui/heroui-3.2.6.min.css' | relative_url }}">
-<link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
-{% if include.css %}<link rel="stylesheet" href="{{ include.css | relative_url }}">{% endif %}
+<link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}?v={{ site.time | date: '%s' }}">
+{% if include.css %}<link rel="stylesheet" href="{{ include.css | relative_url }}?v={{ site.time | date: '%s' }}">{% endif %}
