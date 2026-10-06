@@ -86,12 +86,30 @@
       '<svg class="lp-copy-idle" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>' +
       '<svg class="lp-copy-done" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
-    // Wide tables scroll inside their own frame instead of the page.
+    // Wide tables scroll inside their own frame instead of the page. Tables
+    // with a header row also get per-cell labels so docs.css can stack each
+    // row into a card on narrow screens; the ARIA roles keep the table
+    // semantics that some browsers drop once cells are display: block.
     prose.querySelectorAll('table').forEach(function (table) {
       var frame = document.createElement('div');
       frame.className = 'lp-table';
       table.parentNode.insertBefore(frame, table);
       frame.appendChild(table);
+
+      var headers = table.querySelectorAll('thead th');
+      if (!headers.length) return;
+      frame.classList.add('lp-table--stack');
+      table.setAttribute('role', 'table');
+      table.querySelectorAll('thead, tbody').forEach(function (group) { group.setAttribute('role', 'rowgroup'); });
+      table.querySelectorAll('tr').forEach(function (row) { row.setAttribute('role', 'row'); });
+      headers.forEach(function (th) { th.setAttribute('role', 'columnheader'); });
+      table.querySelectorAll('tbody tr').forEach(function (row) {
+        Array.prototype.forEach.call(row.cells, function (cell, i) {
+          cell.setAttribute('role', 'cell');
+          if (headers[i]) cell.setAttribute('data-label', headers[i].textContent.trim());
+          if (!cell.textContent.trim() && !cell.querySelector('img')) cell.classList.add('lp-cell--empty');
+        });
+      });
     });
 
     // Code blocks: language label and copy button.
