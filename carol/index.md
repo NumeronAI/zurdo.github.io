@@ -90,6 +90,6 @@ carol sync  docs/billing/prds/prd-01-invoices.md --apply
 carol status billing
 ```
 
-[Initiatives](initiatives.md) describes the `docs/<initiative>/` layout these paths follow.
+[Initiatives](initiatives.md) describes the `docs/<initiative>/` layout these paths follow. The [Tutorial](../docs/tutorial.md) walks through the same session step by step, with real output.
 
 Next: [Installation](installation.md)

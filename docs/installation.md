@@ -12,8 +12,8 @@ page_nav:
         content: How it works
         url: '/docs/how-it-works.html'
     next:
-        content: Usage
-        url: '/docs/usage.html'
+        content: Tutorial
+        url: '/docs/tutorial.html'
 ---
 
 Zurdo ships as a pre-built binary from the public [zurdo-dist](https://github.com/ElOrlis/zurdo-dist) releases. It's proprietary and closed-source, so there's no source build and you don't need a Rust toolchain.
@@ -138,3 +138,5 @@ brew install ElOrlis/zurdo/carol
 ```
 
 See [Carol's installation](../carol/installation.md) for tarballs and the `gh` login it needs.
+
+Next: [Tutorial](tutorial.md)

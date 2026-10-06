@@ -9,8 +9,8 @@ description: "Everyday workflows, run output, CI integration, troubleshooting."
 # Page navigation
 page_nav:
     prev:
-        content: Installation
-        url: '/docs/installation.html'
+        content: Tutorial
+        url: '/docs/tutorial.html'
     next:
         content: The PRD loop
         url: '/docs/workflow.html'

@@ -8,6 +8,9 @@
     - title: Installation
       excerpt: Homebrew, release tarballs, and prerequisites.
       url: /docs/installation.html
+    - title: Tutorial
+      excerpt: One feature end to end with zurdo and Carol, step by step.
+      url: /docs/tutorial.html
     - title: Usage
       excerpt: Everyday workflows, run output, CI integration, troubleshooting.
       url: /docs/usage.html
