@@ -67,6 +67,7 @@ exclude:
   - README.md
   - Gemfile
   - Gemfile.lock
+  - mise.toml
   - vendor/
   - .claude/
   - .agents/
