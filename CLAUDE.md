@@ -29,8 +29,11 @@ Link between pages with relative Markdown links (e.g. `[Usage](docs/usage.md)`) 
 ## Commands
 
 ```sh
+mise install              # once; installs the Ruby pinned in mise.toml (matches GitHub Pages)
 bundle install            # once; uses the github-pages gem
 bundle exec jekyll serve  # local preview at http://localhost:4000/
 ```
+
+Run these with mise active in the shell, or prefix each with `mise exec --`. The pinned Ruby follows `ruby` in https://pages.github.com/versions.json; newer Rubies (4.x) can't load the gem versions Pages pins.
 
 There is no test suite. Build errors after a push appear in the repo's Actions tab (pages-build-deployment), not in Settings > Pages.
